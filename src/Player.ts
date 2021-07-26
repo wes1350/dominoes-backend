@@ -1,11 +1,11 @@
 import { Domino } from "./Domino";
 
 export class Player {
-    private _id: string;
+    private _id: number;
     private _hand: Domino[];
     private _score: number;
 
-    constructor(_id: string, score = 0) {
+    constructor(_id: number, score = 0) {
         this._id = _id;
         this._hand = [];
         this._score = score;
@@ -42,6 +42,10 @@ export class Player {
 
     public AddPoints(points: number): void {
         this._score += points;
+    }
+
+    public get ID(): number {
+        return this._id;
     }
 
     public get Score(): number {

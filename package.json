@@ -3,9 +3,15 @@
   "version": "1.0.0",
   "description": "backend for dominos project",
   "main": "index.js",
-  "dependencies": {},
+  "dependencies": {
+    "lodash": "^4.17.21",
+    "readline-sync": "^1.4.10"
+  },
   "devDependencies": {
     "@tsconfig/node14": "^1.0.1",
+    "@types/lodash": "^4.14.171",
+    "@types/node": "^16.4.3",
+    "@types/readline-sync": "^1.4.4",
     "@typescript-eslint/eslint-plugin": "^4.28.4",
     "@typescript-eslint/parser": "^4.28.4",
     "eslint": "^7.31.0",

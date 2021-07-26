@@ -16,14 +16,14 @@ export class Pack {
         }
     }
 
-    public Pull(n = 1): Domino | Domino[] | null {
+    public Pull(n = 1): Domino[] | null {
         if (n === 1) {
             if (this._dominos.length === 0) {
                 return null;
             }
             return this._dominos.splice(
                 getRandomInt(0, this._dominos.length - 1)
-            )[0];
+            );
         } else {
             const pulled = [];
             for (let i = 0; i < n; i++) {

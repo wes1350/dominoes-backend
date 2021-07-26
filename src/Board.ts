@@ -286,7 +286,7 @@ export class Board {
         }
         return total % 5 === 0 ? total : 0;
     }
-    public get_rendered_position(domino: Domino, direction: string) {
+    public GetRenderedPosition(domino: Domino, direction: string) {
         if (direction === "N") {
             if (domino.IsDouble()) {
                 return {
@@ -372,7 +372,7 @@ export class Board {
         return rep;
     }
 
-    public render_board() {
+    public RenderBoard() {
         //
     }
 }

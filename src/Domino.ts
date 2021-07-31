@@ -39,7 +39,7 @@ export class Domino {
     }
 
     public MarkAsSpinner(): void {
-        if (this.IsDouble()) {
+        if (!this.IsDouble()) {
             throw new Error("Cannot mark non-double as spinner");
         }
         this._is_spinner = true;
@@ -53,7 +53,7 @@ export class Domino {
     }
 
     public get Head(): number {
-        return this._reversed ? this.Small : this._ends["big"];
+        return this._reversed ? this.Small : this.Big;
     }
 
     public get Tail(): number {

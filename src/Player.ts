@@ -67,9 +67,9 @@ export class Player {
         return this._hand.length === 0;
     }
 
-    public get HandJSON(): any {
-        return this._hand.map((domino) => {
-            [domino.Head, domino.Tail];
-        });
+    public get HandJSON(): string {
+        return JSON.stringify(
+            this._hand.map((domino) => [domino.Head, domino.Tail])
+        );
     }
 }

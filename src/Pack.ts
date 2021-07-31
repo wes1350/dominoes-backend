@@ -3,6 +3,8 @@
 
 import { Domino } from "./Domino";
 import { getRandomInt } from "./utils";
+// var Domino = require("./Domino");
+// var utils = require("./utils");
 
 export class Pack {
     private _dominos: Domino[];
@@ -22,14 +24,16 @@ export class Pack {
                 return null;
             }
             return this._dominos.splice(
-                getRandomInt(0, this._dominos.length - 1)
+                getRandomInt(0, this._dominos.length),
+                1
             );
         } else {
             const pulled = [];
             for (let i = 0; i < n; i++) {
                 pulled.push(
                     this._dominos.splice(
-                        getRandomInt(0, this._dominos.length - 1)
+                        getRandomInt(0, this._dominos.length),
+                        1
                     )[0]
                 );
             }

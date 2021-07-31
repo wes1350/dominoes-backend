@@ -6,12 +6,17 @@
 // from dominos.classes.Player import Player
 
 import { Board } from "./Board";
+// var Board = require("./Board");
+// var Config = require("./Config");
+// var Pack = require("./Pack");
+// var Player = require("./Player");
 import { Config } from "./Config";
 import { Domino } from "./Domino";
 import { Pack } from "./Pack";
 import { Player } from "./Player";
 import * as _ from "lodash";
 import * as readlineSync from "readline-sync";
+import { print } from "./utils";
 
 export class Engine {
     private _config: Config;
@@ -48,11 +53,11 @@ export class Engine {
         this._current_player = null;
         this._n_passes = 0;
 
-        if ([shout_f, whisper_f, query_f].includes(null)) {
-            throw new Error(
-                "Must specify both shout, whisper, && retrieve functions or omit all"
-            );
-        }
+        // if ([shout_f, whisper_f, query_f].includes(null)) {
+        //     throw new Error(
+        //         "Must specify both shout, whisper, and retrieve functions or omit all"
+        //     );
+        // }
 
         this._local = shout_f === null;
         this._shout_f = shout_f;
@@ -65,6 +70,7 @@ export class Engine {
         this.ShowScores();
         let next_round_fresh = this.PlayRound(true);
         while (!this.GameIsOver()) {
+            print("while 1");
             next_round_fresh = this.PlayRound(next_round_fresh);
         }
 
@@ -77,6 +83,7 @@ export class Engine {
     }
 
     public PlayRound(fresh_round = false) {
+        print("Play Round");
         this._board = new Board();
         this.DrawHands(fresh_round);
         this.shout("", "clear_board");
@@ -86,6 +93,7 @@ export class Engine {
         let blocked = false;
         let play_fresh = fresh_round;
         while (this.PlayersHaveDominos() && !blocked && !this.GameIsOver()) {
+            print("while 2");
             blocked = this.PlayTurn(play_fresh);
             this.NextTurn();
             this.ShowScores();
@@ -98,15 +106,15 @@ export class Engine {
             this._players[this._current_player].AddPoints(
                 this.GetValueOnDomino(this._current_player)
             );
-            console.log(`Player ${this._current_player} dominoed!`);
+            print(`Player ${this._current_player} dominoed!`);
             this.ShowScores();
             this.shout("", "round_over");
             return false;
         } else if (blocked) {
-            console.log("Game blocked!");
+            print("Game blocked!");
             let [blocked_scorer, points] = this.GetBlockedResult();
             if (blocked_scorer !== null) {
-                console.log(`Player ${blocked_scorer} scores {points}`);
+                print(`Player ${blocked_scorer} scores {points}`);
                 this._players[blocked_scorer].AddPoints(points);
             }
             this.ShowScores();
@@ -118,6 +126,7 @@ export class Engine {
     }
 
     public PlayTurn(play_fresh = false) {
+        print("Play Turn");
         const move = this.queryMove(this._current_player, play_fresh);
         const domino = move.domino;
         const direction = move.direction;
@@ -132,32 +141,38 @@ export class Engine {
             }
             this._players[this._current_player].RemoveDomino(domino);
             this.whisper(
-                this._players[this._current_player].HandJSON(),
+                this._players[this._current_player].HandJSON,
                 this._current_player,
                 "hand"
             );
 
             this._players[this._current_player].AddPoints(this._board.Score);
+            print("In play turn");
             this._n_passes = 0;
         } else {
             // Player passes
             this._n_passes += 1;
         }
+        print("still in play turn");
         if (this._n_passes == this._n_players) {
+            print("will be blocked");
             return true;
         }
 
-        console.log(this._board);
+        print("rep:", this._board.Rep);
         return false;
     }
 
     public NextTurn() {
+        print("Next turn");
         // Update the player to move.
         this._current_player = (this._current_player + 1) % this._n_players;
     }
 
     public DrawHands(fresh_round = false) {
+        print("Draw Hands");
         while (true) {
+            print("while 3");
             this._pack = new Pack();
             const hands = [];
             for (let i = 0; i < this._n_players; i++) {
@@ -178,6 +193,7 @@ export class Engine {
         check_5_doubles = true,
         check_any_double = false
     ) {
+        print("Verify Hands");
         if (!check_5_doubles && !check_any_double) {
             return true;
         }
@@ -210,14 +226,14 @@ export class Engine {
         // Assumes each player's hand === assigned && a double exists among them.
         for (let i = 6; i >= 0; i--) {
             for (let p = 0; p < this._n_players; p++) {
-                this._players[p].Hand.forEach((domino) => {
+                for (const domino of this._players[p].Hand) {
                     if (domino.Equals(new Domino(i, i))) {
                         return p;
                     }
-                });
+                }
             }
         }
-        throw new Error("Could !find double in player's hands");
+        throw new Error("Could not find double in any player's hands");
     }
 
     public PlayersHaveDominos() {
@@ -243,6 +259,7 @@ export class Engine {
     }
 
     public GetPlayerScore(player: number) {
+        print("Got player score");
         return this._players[player].Score;
     }
 
@@ -250,7 +267,9 @@ export class Engine {
         player: number,
         play_fresh = false
     ): { domino: Domino; direction: string } {
+        print("queryMove");
         while (true) {
+            print("while 4");
             const possible_placements = this._board.GetValidPlacementsForHand(
                 this._players[player].Hand,
                 play_fresh
@@ -259,9 +278,9 @@ export class Engine {
                 return { index: el.index, rep: el.domino.Rep, dirs: el.dirs };
             });
             // const pretty_placements = [(x[0], str(x[1]), x[2]) for x in possible_placements]
-            console.log("Possible placements:");
+            print("Possible placements:");
             pretty_placements.forEach((el) => {
-                console.log(" --- " + el.rep);
+                print(` --- ${el.index}: ${el.rep}, [${el.dirs.join(", ")}]`);
             });
             if (!this._local) {
                 const playable_dominos = _.range(
@@ -285,7 +304,9 @@ export class Engine {
                     let domino_index;
                     let response;
                     if (this._local) {
-                        domino_index = parseInt(this.input(query_msg).trim());
+                        const response = this.input(query_msg);
+                        print("res:", response);
+                        domino_index = parseInt(response.trim());
                     } else {
                         this.whisper(query_msg, player, "prompt");
                         response = this.GetResponse(player);
@@ -313,6 +334,7 @@ export class Engine {
                             return { domino, direction };
                         } else {
                             while (true) {
+                                print("while 5");
                                 const query_msg = `Player ${player}, what direction do you select?\n`;
                                 let direction;
                                 if (this._local) {
@@ -359,7 +381,7 @@ export class Engine {
                         "hand"
                     );
                 } else {
-                    this.shout("Pack === empty, cannot pull. Skipping turn");
+                    this.shout("Pack is empty, cannot pull. Skipping turn");
                     return { domino: null, direction: null };
                 }
             }
@@ -388,7 +410,7 @@ export class Engine {
         // that player && the points they receive.
         const totals = this._players.map((p) => p.HandTotal);
         // const totals = [p.hand_total() for p in this._players]
-        // console.log("Totals:", {i: totals[i] for i in range(len(totals))})
+        // print("Totals:", {i: totals[i] for i in range(len(totals))})
         if (totals.filter((t) => t === Math.min(...totals)).length > 1) {
             // if (len([t for t in totals if t == min(totals)]) > 1)){
             // Multiple players have lowest count, so nobody gets points
@@ -420,7 +442,7 @@ export class Engine {
     }
 
     public ShowScores() {
-        console.log("Scores:", this.GetScores());
+        print("Scores:", this.GetScores());
         if (this._local) {
             this.shout(this.GetScores(), "scores");
         }
@@ -429,6 +451,7 @@ export class Engine {
     public GetResponse(player: number, print_wait: boolean = false) {
         // query server for a response.
         while (true) {
+            print("while 6");
             const response = this._query_f(player);
             if (response === "No response") {
                 this.sleep(0.01);
@@ -442,16 +465,18 @@ export class Engine {
     }
 
     public whisper(message: string, player: number, tag: string = null) {
-        console.log(player, ":", message);
+        print("whisper:", player, ":", message);
         if (this._local) {
-            this._whisper_f(message, player, tag);
+            // this._whisper_f(message, player, tag);
+            // this.input(message);
         }
     }
 
     public shout(message: string, tag: string = null) {
-        console.log(message);
+        print("shout:", message);
         if (!this._local) {
-            this._shout_f(message, tag);
+            // this._shout_f(message, tag);
+            print(message);
         }
     }
 
@@ -460,7 +485,9 @@ export class Engine {
     }
 
     private input(message: string): string {
-        return readlineSync.question(message);
+        const response = readlineSync.question(message);
+        // print("response:", response);
+        return response;
     }
 }
 

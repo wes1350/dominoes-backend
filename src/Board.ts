@@ -1,4 +1,6 @@
 import { Domino } from "./Domino";
+import { print } from "./utils";
+// var Domino = require("./Domino");
 
 export class Board {
     private _board: Map<number, Map<number, Domino>>;
@@ -44,8 +46,8 @@ export class Board {
     }
 
     public AddDomino(domino: Domino, direction = "") {
-        let valid,
-            reverse = this.VerifyPlacement(domino, direction);
+        print("Add domino");
+        let [valid, reverse] = this.VerifyPlacement(domino, direction);
         if (!valid) {
             throw new Error(
                 `Domino ${domino.Rep} cannot be added in the ${direction} direction`
@@ -127,6 +129,7 @@ export class Board {
     public VerifyPlacement(domino: Domino, direction: string): boolean[] {
         // Return whether a domino can be placed in the given direction
         // and whether it needs to be reversed in order to be valid.
+        print("Verify Placement");
         let x, y, hook;
         if (direction === "") {
             if (this._dominoExistsAt(0, 0)) {
@@ -184,14 +187,14 @@ export class Board {
     }
 
     public GetValidPlacements(domino: Domino): string[] {
+        print("Get Valid Placements");
         // Return which directions a domino can be placed in.
         if (this.IsEmpty()) {
             return [""];
         }
         const valid_dirs = [];
         for (const direction of ["N", "E", "S", "W"]) {
-            let valid,
-                _ = this.VerifyPlacement(domino, direction);
+            let [valid, __] = this.VerifyPlacement(domino, direction);
             if (valid) {
                 valid_dirs.push(direction);
             }
@@ -213,6 +216,7 @@ export class Board {
                 }
             });
         }
+        print(largest_double);
         hand.forEach((domino, i) => {
             if (play_fresh) {
                 if (domino.Head !== largest_double || !domino.IsDouble()) {
@@ -239,6 +243,7 @@ export class Board {
     }
 
     public get Score(): number {
+        print("Score");
         if (this.IsEmpty()) {
             throw new Error("Cannot score an empty board");
         }
@@ -284,6 +289,7 @@ export class Board {
                 }
             }
         }
+        print("returned score", total % 5 === 0 ? total : 0);
         return total % 5 === 0 ? total : 0;
     }
     public GetRenderedPosition(domino: Domino, direction: string) {
@@ -349,7 +355,7 @@ export class Board {
             }
         }
     }
-    public Rep(): string {
+    public get Rep(): string {
         // Prints the current board state.
         if (this._north === null) {
             return ".";

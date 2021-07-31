@@ -1,10 +1,5 @@
-// import random
-// from dominos.classes.Domino import Domino
-
 import { Domino } from "./Domino";
 import { getRandomInt } from "./utils";
-// var Domino = require("./Domino");
-// var utils = require("./utils");
 
 export class Pack {
     private _dominos: Domino[];

@@ -5,7 +5,7 @@
 // from dominos.classes.Pack import Pack
 // from dominos.classes.Player import Player
 
-import { Board } from "./Board";
+import { Board, Direction } from "./Board";
 // var Board = require("./Board");
 // var Config = require("./Config");
 // var Pack = require("./Pack");
@@ -15,8 +15,7 @@ import { Domino } from "./Domino";
 import { Pack } from "./Pack";
 import { Player } from "./Player";
 import * as _ from "lodash";
-import * as readlineSync from "readline-sync";
-import { print } from "./utils";
+import * as readline from "readline";
 
 export class Engine {
     private _config: Config;
@@ -33,6 +32,7 @@ export class Engine {
     private _shout_f: (message: string, tag?: string) => void;
     private _whisper_f: (message: string, index: number, tag?: string) => void;
     private _query_f: (index: number) => string;
+    private rl: any;
 
     public constructor(
         whisper_f: (message: string, index: number) => void = null,
@@ -63,15 +63,20 @@ export class Engine {
         this._shout_f = shout_f;
         this._whisper_f = whisper_f;
         this._query_f = query_f;
+        this.rl = this._local
+            ? readline.createInterface({
+                  input: process.stdin,
+                  output: process.stdout
+              })
+            : null;
     }
 
-    public RunGame() {
+    public async RunGame() {
         // Start && run a game until completion, handling game logic as necessary.
         this.ShowScores();
-        let next_round_fresh = this.PlayRound(true);
+        let next_round_fresh = await this.PlayRound(true);
         while (!this.GameIsOver()) {
-            print("while 1");
-            next_round_fresh = this.PlayRound(next_round_fresh);
+            next_round_fresh = await this.PlayRound(next_round_fresh);
         }
 
         const scores = this.GetScores(false);
@@ -82,8 +87,7 @@ export class Engine {
         return winner;
     }
 
-    public PlayRound(fresh_round = false) {
-        print("Play Round");
+    public async PlayRound(fresh_round = false) {
         this._board = new Board();
         this.DrawHands(fresh_round);
         this.shout("", "clear_board");
@@ -93,8 +97,7 @@ export class Engine {
         let blocked = false;
         let play_fresh = fresh_round;
         while (this.PlayersHaveDominos() && !blocked && !this.GameIsOver()) {
-            print("while 2");
-            blocked = this.PlayTurn(play_fresh);
+            blocked = await this.PlayTurn(play_fresh);
             this.NextTurn();
             this.ShowScores();
             play_fresh = false;
@@ -106,28 +109,27 @@ export class Engine {
             this._players[this._current_player].AddPoints(
                 this.GetValueOnDomino(this._current_player)
             );
-            print(`Player ${this._current_player} dominoed!`);
+            console.log(`Player ${this._current_player} dominoed!`);
             this.ShowScores();
             this.shout("", "round_over");
             return false;
         } else if (blocked) {
-            print("Game blocked!");
+            console.log("Game blocked!");
             let [blocked_scorer, points] = this.GetBlockedResult();
             if (blocked_scorer !== null) {
-                print(`Player ${blocked_scorer} scores {points}`);
+                console.log(`Player ${blocked_scorer} scores ${points}`);
                 this._players[blocked_scorer].AddPoints(points);
             }
             this.ShowScores();
             return true;
         } else {
-            // Game === over
+            // Game is over
             return false;
         }
     }
 
-    public PlayTurn(play_fresh = false) {
-        print("Play Turn");
-        const move = this.queryMove(this._current_player, play_fresh);
+    public async PlayTurn(play_fresh = false) {
+        const move = await this.queryMove(this._current_player, play_fresh);
         const domino = move.domino;
         const direction = move.direction;
         if (domino !== null) {
@@ -137,7 +139,6 @@ export class Engine {
                     JSON.stringify(this.GetPlacementRep(domino, direction)),
                     "AddDomino"
                 );
-                this.sleep(0);
             }
             this._players[this._current_player].RemoveDomino(domino);
             this.whisper(
@@ -147,32 +148,26 @@ export class Engine {
             );
 
             this._players[this._current_player].AddPoints(this._board.Score);
-            print("In play turn");
             this._n_passes = 0;
         } else {
             // Player passes
             this._n_passes += 1;
         }
-        print("still in play turn");
         if (this._n_passes == this._n_players) {
-            print("will be blocked");
             return true;
         }
 
-        print("rep:", this._board.Rep);
+        console.log("rep:", this._board.Rep);
         return false;
     }
 
     public NextTurn() {
-        print("Next turn");
         // Update the player to move.
         this._current_player = (this._current_player + 1) % this._n_players;
     }
 
     public DrawHands(fresh_round = false) {
-        print("Draw Hands");
         while (true) {
-            print("while 3");
             this._pack = new Pack();
             const hands = [];
             for (let i = 0; i < this._n_players; i++) {
@@ -193,7 +188,6 @@ export class Engine {
         check_5_doubles = true,
         check_any_double = false
     ) {
-        print("Verify Hands");
         if (!check_5_doubles && !check_any_double) {
             return true;
         }
@@ -246,30 +240,25 @@ export class Engine {
 
     public GetScores(indexed = true) {
         if (indexed) {
-            // return {i: this.GetPlayerScore(i) for i in range(len(this._players))}
             const result: any = {};
             this._players.forEach((p, i) => {
                 result[i] = this.GetPlayerScore(i);
             });
             return result;
         } else {
-            // return [this.GetPlayerScore(i) for i in range(len(this._players))]
             return this._players.map((p, i) => this.GetPlayerScore(i));
         }
     }
 
     public GetPlayerScore(player: number) {
-        print("Got player score");
         return this._players[player].Score;
     }
 
-    public queryMove(
+    public async queryMove(
         player: number,
         play_fresh = false
-    ): { domino: Domino; direction: string } {
-        print("queryMove");
+    ): Promise<{ domino: Domino; direction: Direction }> {
         while (true) {
-            print("while 4");
             const possible_placements = this._board.GetValidPlacementsForHand(
                 this._players[player].Hand,
                 play_fresh
@@ -278,9 +267,11 @@ export class Engine {
                 return { index: el.index, rep: el.domino.Rep, dirs: el.dirs };
             });
             // const pretty_placements = [(x[0], str(x[1]), x[2]) for x in possible_placements]
-            print("Possible placements:");
+            console.log("Possible placements:");
             pretty_placements.forEach((el) => {
-                print(` --- ${el.index}: ${el.rep}, [${el.dirs.join(", ")}]`);
+                console.log(
+                    ` --- ${el.index}: ${el.rep}, [${el.dirs.join(", ")}]`
+                );
             });
             if (!this._local) {
                 const playable_dominos = _.range(
@@ -304,8 +295,7 @@ export class Engine {
                     let domino_index;
                     let response;
                     if (this._local) {
-                        const response = this.input(query_msg);
-                        print("res:", response);
+                        const response = await this.input(query_msg);
                         domino_index = parseInt(response.trim());
                     } else {
                         this.whisper(query_msg, player, "prompt");
@@ -334,20 +324,23 @@ export class Engine {
                             return { domino, direction };
                         } else {
                             while (true) {
-                                print("while 5");
                                 const query_msg = `Player ${player}, what direction do you select?\n`;
-                                let direction;
+                                let direction: Direction;
                                 if (this._local) {
-                                    direction = this.input(query_msg).trim();
+                                    direction = (
+                                        await this.input(query_msg)
+                                    ).trim() as Direction;
                                 } else {
                                     this.whisper(query_msg, player, "prompt");
                                     response = this.GetResponse(player);
-                                    direction = response.trim().toUpperCase();
+                                    direction = response
+                                        .trim()
+                                        .toUpperCase() as Direction;
                                 }
                                 if (
                                     !possible_placements[
                                         domino_index
-                                    ].dirs.includes(direction)
+                                    ].dirs.includes(direction as Direction)
                                 ) {
                                     this.whisper(
                                         "Invalid direction: " + direction,
@@ -367,7 +360,7 @@ export class Engine {
                 const pulled = this._pack.Pull();
                 const query_msg = `Player ${player}, you have no valid moves. Send a blank input to pull\n`;
                 if (this._local) {
-                    const __ = this.input(query_msg);
+                    const __ = await this.input(query_msg);
                 } else {
                     this.whisper(query_msg, player, "prompt");
                     const __ = this.GetResponse(player);
@@ -390,13 +383,12 @@ export class Engine {
 
     public GetValueOnDomino(player: number) {
         // Get the value of a 'Domino' by a player, i.e. the sum, rounded to the
-        // nearest 5, of the other players' hand totals."""
+        // nearest 5, of the other players' hand totals.
         let total = this._players
             .filter((p, i) => i !== player)
             .map((p) => p.HandTotal)
             .reduce((a, b) => a + b, 0);
 
-        // let total = sum([p.hand_total() for i, p in enumerate(this._players) if i != player])
         if (total % 5 > 2) {
             total += 5 - (total % 5);
         } else {
@@ -409,10 +401,7 @@ export class Engine {
         // Find the player (if any) that wins points when the game === blocked && return
         // that player && the points they receive.
         const totals = this._players.map((p) => p.HandTotal);
-        // const totals = [p.hand_total() for p in this._players]
-        // print("Totals:", {i: totals[i] for i in range(len(totals))})
         if (totals.filter((t) => t === Math.min(...totals)).length > 1) {
-            // if (len([t for t in totals if t == min(totals)]) > 1)){
             // Multiple players have lowest count, so nobody gets points
             return [null, 0];
         } else {
@@ -428,7 +417,7 @@ export class Engine {
         }
     }
 
-    public GetPlacementRep(domino: Domino, direction: string) {
+    public GetPlacementRep(domino: Domino, direction: Direction) {
         const rendered_position = this._board.GetRenderedPosition(
             domino,
             direction
@@ -442,52 +431,55 @@ export class Engine {
     }
 
     public ShowScores() {
-        print("Scores:", this.GetScores());
         if (this._local) {
-            this.shout(this.GetScores(), "scores");
+            this.shout("Scores:" + JSON.stringify(this.GetScores()), "scores");
         }
     }
 
     public GetResponse(player: number, print_wait: boolean = false) {
         // query server for a response.
-        while (true) {
-            print("while 6");
-            const response = this._query_f(player);
-            if (response === "No response") {
-                this.sleep(0.01);
-                continue;
-            } else if (response !== null) {
-                return response;
-            } else {
-                throw new Error("Assertion error");
-            }
-        }
+        return "";
+        // throw new Error("Should not reach this function yet");
+        // while (true) {
+        //     const response = this._query_f(player);
+        //     if (response === "No response") {
+        //         this.sleep(0.01);
+        //         continue;
+        //     } else if (response !== null) {
+        //         return response;
+        //     } else {
+        //         throw new Error("Assertion error");
+        //     }
+        // }
     }
 
     public whisper(message: string, player: number, tag: string = null) {
-        print("whisper:", player, ":", message);
         if (this._local) {
+            console.log("whisper to player:", message);
             // this._whisper_f(message, player, tag);
             // this.input(message);
         }
     }
 
     public shout(message: string, tag: string = null) {
-        print("shout:", message);
         if (!this._local) {
             // this._shout_f(message, tag);
-            print(message);
+        }
+        if (this._local) {
+            console.log("shout:", message);
         }
     }
 
-    private async sleep(duration: number) {
-        await new Promise((resolve) => setTimeout(resolve, duration / 1000));
-    }
+    // private async sleep(duration: number) {
+    //     await new Promise((resolve) => setTimeout(resolve, duration / 1000));
+    // }
 
-    private input(message: string): string {
-        const response = readlineSync.question(message);
-        // print("response:", response);
-        return response;
+    private input(message: string): Promise<string> {
+        // const response = readlineSync.question(message);
+        // return response;
+        return new Promise((resolve, reject) => {
+            this.rl.question(message, (input: string) => resolve(input));
+        });
     }
 }
 

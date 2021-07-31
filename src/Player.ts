@@ -20,15 +20,6 @@ export class Player {
     }
 
     public RemoveDomino(domino: Domino) {
-        // for i, d in enumerate(this._hand):
-        //     if d == domino:
-        //         this._hand.pop(i)
-        //         return
-        // for (const d of this._hand) {
-        //     if (d.Equals(domino)) {
-        //         this._hand.splice()
-        //     }
-        // }
         const requestedDomino = this._hand.find((d) => d.Equals(domino));
         if (!requestedDomino) {
             throw new Error(`Could not find domino${domino.Rep} in hand.`);
@@ -36,15 +27,13 @@ export class Player {
             this._hand = this._hand.filter((d) => !d.Equals(domino));
             return requestedDomino;
         }
-
-        // raise Exception(f"Could not find domino {str(domino)} in hand. Hand: {[str(dom) for dom in this._hand]}")
     }
 
     public AddPoints(points: number): void {
         this._score += points;
     }
 
-    public get ID(): number {
+    public get Id(): number {
         return this._id;
     }
 
@@ -60,7 +49,6 @@ export class Player {
         return this._hand
             .map((domino) => domino.Total)
             .reduce((a, b) => a + b, 0);
-        // return sum([d.total() for d in this._hand])
     }
 
     public HandIsEmpty(): boolean {

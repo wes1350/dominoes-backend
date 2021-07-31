@@ -1,6 +1,5 @@
 export class Domino {
     private _ends: { big: number; small: number };
-    // private coordinates: string | null;
     private _is_spinner: boolean;
     private _reversed: boolean;
 
@@ -9,18 +8,9 @@ export class Domino {
             throw new Error("Must pass in big end of Domino first");
         }
         this._ends = { big, small };
-        // this.coordinates = null;
         this._is_spinner = false;
         this._reversed = false;
     }
-
-    // public get_coordinates() {
-    //     return this.coordinates;
-    // }
-
-    // public set_coordinates(coordinates: string | null) {
-    //     this.coordinates = coordinates;
-    // }
 
     public get Big(): number {
         return this._ends["big"];
@@ -31,7 +21,7 @@ export class Domino {
     }
 
     public IsDouble(): boolean {
-        return this.Big == this.Small;
+        return this.Big === this.Small;
     }
 
     public IsSpinner(): boolean {
@@ -61,7 +51,7 @@ export class Domino {
     }
 
     public get Total(): number {
-        return this._ends["big"] + this.Big;
+        return this.Big + this.Small;
     }
 
     public Equals(domino: Domino) {

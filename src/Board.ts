@@ -1,6 +1,15 @@
+// import { Dir } from "fs";
+// import { Direction } from "readline";
 import { Domino } from "./Domino";
-import { print } from "./utils";
 // var Domino = require("./Domino");
+
+export enum Direction {
+    NORTH = "N",
+    EAST = "E",
+    SOUTH = "S",
+    WEST = "W",
+    NONE = ""
+}
 
 export class Board {
     private _board: Map<number, Map<number, Domino>>;
@@ -45,8 +54,7 @@ export class Board {
         return this._board.get(x)?.get(y);
     }
 
-    public AddDomino(domino: Domino, direction = "") {
-        print("Add domino");
+    public AddDomino(domino: Domino, direction = Direction.NONE) {
         let [valid, reverse] = this.VerifyPlacement(domino, direction);
         if (!valid) {
             throw new Error(
@@ -81,7 +89,7 @@ export class Board {
             // Since we can only play north/south off doubles, rendered north/south limits are always the same
             this._rendered_north = 2;
             this._rendered_south = -2;
-        } else if (direction === "N") {
+        } else if (direction === Direction.NORTH) {
             if (this._spinner_x === null) {
                 throw new Error(
                     "Cannot add domino to north side when spinner isn't set"
@@ -90,7 +98,7 @@ export class Board {
             this._north += 1;
             this._rendered_north += domino.IsDouble() ? 2 : 4;
             this._addToBoard(domino, this._spinner_x, this._north);
-        } else if (direction === "E") {
+        } else if (direction === Direction.EAST) {
             this._east += 1;
             this._rendered_east += domino.IsDouble() ? 2 : 4;
             this._addToBoard(domino, this._east, 0);
@@ -99,7 +107,7 @@ export class Board {
                 this._rendered_spinner_x = this._rendered_east - 1;
                 domino.MarkAsSpinner();
             }
-        } else if (direction === "S") {
+        } else if (direction === Direction.SOUTH) {
             if (this._spinner_x === null) {
                 throw new Error(
                     "Cannot add domino to south side when spinner isn't set"
@@ -108,7 +116,7 @@ export class Board {
             this._south -= 1;
             this._rendered_south -= domino.IsDouble() ? 2 : 4;
             this._addToBoard(domino, this._spinner_x, this._south);
-        } else if (direction === "W") {
+        } else if (direction === Direction.WEST) {
             this._west -= 1;
             this._rendered_west -= domino.IsDouble() ? 2 : 4;
             this._addToBoard(domino, this._west, 0);
@@ -126,17 +134,16 @@ export class Board {
         }
     }
 
-    public VerifyPlacement(domino: Domino, direction: string): boolean[] {
+    public VerifyPlacement(domino: Domino, direction: Direction): boolean[] {
         // Return whether a domino can be placed in the given direction
         // and whether it needs to be reversed in order to be valid.
-        print("Verify Placement");
-        let x, y, hook;
-        if (direction === "") {
+        let x, y;
+        if (direction === Direction.NONE) {
             if (this._dominoExistsAt(0, 0)) {
                 return [false, false];
             }
             return [true, false]; // No need to check in this case as it's the first placement
-        } else if (direction === "N") {
+        } else if (direction === Direction.NORTH) {
             if (
                 this._spinner_x === null ||
                 this._east === this._spinner_x ||
@@ -146,10 +153,10 @@ export class Board {
             }
             x = this._spinner_x;
             y = this._north;
-        } else if (direction === "E") {
+        } else if (direction === Direction.EAST) {
             x = this._east;
             y = 0;
-        } else if (direction === "S") {
+        } else if (direction === Direction.SOUTH) {
             if (
                 this._spinner_x === null ||
                 this._east === this._spinner_x ||
@@ -159,13 +166,15 @@ export class Board {
             }
             x = this._spinner_x;
             y = this._south;
-        } else if (direction === "W") {
+        } else if (direction === Direction.WEST) {
             x = this._west;
             y = 0;
         } else {
             throw new Error("Invalid direction:" + direction);
         }
-        if (direction in ["N", "W"]) {
+
+        let hook;
+        if (direction in [Direction.NORTH, Direction.WEST]) {
             hook = this._getDominoAt(x, y).Head;
         } else {
             hook = this._getDominoAt(x, y).Tail;
@@ -178,36 +187,37 @@ export class Board {
         return [false, false];
     }
 
-    public GetLinkEnd(domino: Domino, direction: string) {
-        return ["N", "W"].includes(direction) ? domino.Tail : domino.Head;
+    public GetLinkEnd(domino: Domino, direction: Direction) {
+        return [Direction.NORTH, Direction.WEST].includes(direction)
+            ? domino.Tail
+            : domino.Head;
     }
 
-    public GetFreeEnd(domino: Domino, direction: string) {
-        return ["N", "W"].includes(direction) ? domino.Head : domino.Tail;
+    public GetFreeEnd(domino: Domino, direction: Direction) {
+        return [Direction.NORTH, Direction.WEST].includes(direction)
+            ? domino.Head
+            : domino.Tail;
     }
 
-    public GetValidPlacements(domino: Domino): string[] {
-        print("Get Valid Placements");
+    public GetValidPlacements(domino: Domino): Direction[] {
         // Return which directions a domino can be placed in.
         if (this.IsEmpty()) {
-            return [""];
+            return [Direction.NONE];
         }
-        const valid_dirs = [];
-        for (const direction of ["N", "E", "S", "W"]) {
-            let [valid, __] = this.VerifyPlacement(domino, direction);
-            if (valid) {
-                valid_dirs.push(direction);
-            }
-        }
-        return valid_dirs;
+        return Object.values(Direction).filter(
+            (d) => this.VerifyPlacement(domino, d)[0]
+        );
     }
 
     public GetValidPlacementsForHand(
         hand: Domino[],
         play_fresh = false
-    ): { index: number; domino: Domino; dirs: string[] }[] {
-        const placements: { index: number; domino: Domino; dirs: string[] }[] =
-            [];
+    ): { index: number; domino: Domino; dirs: Direction[] }[] {
+        const placements: {
+            index: number;
+            domino: Domino;
+            dirs: Direction[];
+        }[] = [];
         let largest_double = -1;
         if (play_fresh) {
             hand.forEach((domino: Domino) => {
@@ -216,7 +226,6 @@ export class Board {
                 }
             });
         }
-        print(largest_double);
         hand.forEach((domino, i) => {
             if (play_fresh) {
                 if (domino.Head !== largest_double || !domino.IsDouble()) {
@@ -243,7 +252,6 @@ export class Board {
     }
 
     public get Score(): number {
-        print("Score");
         if (this.IsEmpty()) {
             throw new Error("Cannot score an empty board");
         }
@@ -261,13 +269,13 @@ export class Board {
             if (east.IsDouble()) {
                 total += east.Total;
             } else {
-                total += this.GetFreeEnd(east, "E");
+                total += this.GetFreeEnd(east, Direction.EAST);
             }
 
             if (west.IsDouble()) {
                 total += west.Total;
             } else {
-                total += this.GetFreeEnd(west, "W");
+                total += this.GetFreeEnd(west, Direction.WEST);
             }
 
             // Handle north-south
@@ -276,7 +284,7 @@ export class Board {
                 if (north.IsDouble()) {
                     total += north.Total;
                 } else {
-                    total += this.GetFreeEnd(north, "N");
+                    total += this.GetFreeEnd(north, Direction.NORTH);
                 }
             }
 
@@ -285,15 +293,14 @@ export class Board {
                 if (south.IsDouble()) {
                     total += south.Total;
                 } else {
-                    total += this.GetFreeEnd(south, "S");
+                    total += this.GetFreeEnd(south, Direction.SOUTH);
                 }
             }
         }
-        print("returned score", total % 5 === 0 ? total : 0);
         return total % 5 === 0 ? total : 0;
     }
-    public GetRenderedPosition(domino: Domino, direction: string) {
-        if (direction === "N") {
+    public GetRenderedPosition(domino: Domino, direction: Direction) {
+        if (direction === Direction.NORTH) {
             if (domino.IsDouble()) {
                 return {
                     "1": [this._rendered_spinner_x - 2, this._rendered_north],
@@ -308,7 +315,10 @@ export class Board {
                     ]
                 };
             }
-        } else if (direction === "E" || direction === "") {
+        } else if (
+            direction === Direction.EAST ||
+            direction === Direction.NONE
+        ) {
             if (domino.IsDouble()) {
                 return {
                     "1": [this._rendered_east - 2, 2],
@@ -320,7 +330,7 @@ export class Board {
                     "2": [this._rendered_east - 2, 1]
                 };
             }
-        } else if (direction === "S") {
+        } else if (direction === Direction.SOUTH) {
             if (domino.IsDouble()) {
                 return {
                     "1": [
@@ -341,7 +351,7 @@ export class Board {
                     ]
                 };
             }
-        } else if (direction === "W") {
+        } else if (direction === Direction.WEST) {
             if (domino.IsDouble()) {
                 return {
                     "1": [this._rendered_west, 2],
@@ -361,13 +371,9 @@ export class Board {
             return ".";
         }
         let rep = "";
-        for (let r = this._south - 1; r < this._north; r--) {
-            //in range(this._north, this._south - 1, -1):
+        for (let r = this._north; r > this._south - 1; r--) {
             for (let c = this._west; c < this._east + 1; c++) {
-                //in range(this._west, this._east + 1):
-                // if ((c, r) in this._board) {
                 if (this._dominoExistsAt(c, r)) {
-                    // rep += str(this._board[(c, r)]);
                     rep += this._getDominoAt(c, r).Rep;
                 } else {
                     rep += "  .  ";

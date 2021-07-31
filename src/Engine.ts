@@ -79,18 +79,20 @@ export class Engine {
             next_round_fresh = await this.PlayRound(next_round_fresh);
         }
 
-        const scores = this.GetScores(false);
+        const scores = this.GetScores();
 
-        const winner = scores.index(Math.max(scores));
-        this.shout(`Game === over!\n\nPlayer ${winner} wins!`);
-        this.shout("", "game_over");
+        const winner = scores.findIndex(
+            (score: number) => score === Math.max(...scores)
+        );
+        this.shout(`Game is over!\n\nPlayer ${winner} wins!`);
+        // this.shout("", "game_over");
         return winner;
     }
 
     public async PlayRound(fresh_round = false) {
         this._board = new Board();
         this.DrawHands(fresh_round);
-        this.shout("", "clear_board");
+        // this.shout("", "clear_board");
         if (fresh_round) {
             this._current_player = this.DetermineFirstPlayer();
         }
@@ -111,7 +113,7 @@ export class Engine {
             );
             console.log(`Player ${this._current_player} dominoed!`);
             this.ShowScores();
-            this.shout("", "round_over");
+            // this.shout("", "round_over");
             return false;
         } else if (blocked) {
             console.log("Game blocked!");
@@ -157,7 +159,7 @@ export class Engine {
             return true;
         }
 
-        console.log("rep:", this._board.Rep);
+        console.log(this._board.Rep);
         return false;
     }
 
@@ -185,8 +187,8 @@ export class Engine {
 
     public VerifyHands(
         hands: Domino[][],
-        check_5_doubles = true,
-        check_any_double = false
+        check_any_double = false,
+        check_5_doubles = true
     ) {
         if (!check_5_doubles && !check_any_double) {
             return true;
@@ -235,19 +237,11 @@ export class Engine {
     }
 
     public GameIsOver() {
-        return Math.max(...this.GetScores(false)) >= this._win_threshold;
+        return Math.max(...this.GetScores()) >= this._win_threshold;
     }
 
-    public GetScores(indexed = true) {
-        if (indexed) {
-            const result: any = {};
-            this._players.forEach((p, i) => {
-                result[i] = this.GetPlayerScore(i);
-            });
-            return result;
-        } else {
-            return this._players.map((p, i) => this.GetPlayerScore(i));
-        }
+    public GetScores(): number[] {
+        return this._players.map((p, i) => this.GetPlayerScore(i));
     }
 
     public GetPlayerScore(player: number) {
@@ -455,7 +449,7 @@ export class Engine {
 
     public whisper(message: string, player: number, tag: string = null) {
         if (this._local) {
-            console.log("whisper to player:", message);
+            console.log("whisper to player:", player, ":", message);
             // this._whisper_f(message, player, tag);
             // this.input(message);
         }

@@ -174,7 +174,7 @@ export class Board {
         }
 
         let hook;
-        if (direction in [Direction.NORTH, Direction.WEST]) {
+        if ([Direction.NORTH, Direction.WEST].includes(direction)) {
             hook = this._getDominoAt(x, y).Head;
         } else {
             hook = this._getDominoAt(x, y).Tail;

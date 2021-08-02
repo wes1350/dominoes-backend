@@ -16,6 +16,7 @@ import { Pack } from "./Pack";
 import { Player } from "./Player";
 import * as _ from "lodash";
 import * as readline from "readline";
+import { QueryType, MessageType } from "./app";
 
 export class Engine {
     private _config: Config;
@@ -29,18 +30,35 @@ export class Engine {
     private _current_player: number;
     private _n_passes: number;
     private _local: boolean;
-    private _shout_f: (message: string, tag?: string) => void;
-    private _whisper_f: (message: string, index: number, tag?: string) => void;
-    private _query_f: (index: number) => string;
+    private _shout: (type: MessageType, message: string) => void;
+    private _whisper: (
+        type: MessageType,
+        message: string,
+        index: number
+    ) => void;
+    private _query: (
+        type: QueryType,
+        message: string,
+        player: number
+    ) => Promise<string>;
     private rl: any;
 
     public constructor(
-        whisper_f: (message: string, index: number) => void = null,
-        shout_f: (message: string) => void = null,
-        query_f: (index: number) => string = null
+        n_players: number,
+        whisper_f: (
+            type: MessageType,
+            message: string,
+            index: number
+        ) => void = null,
+        shout_f: (type: MessageType, message: string) => void = null,
+        query_f: (
+            type: QueryType,
+            message: string,
+            player: number
+        ) => Promise<string> = null
     ) {
         this._config = new Config();
-        this._n_players = this._config.NPlayers;
+        this._n_players = n_players ?? this._config.NPlayers;
         this._hand_size = this._config.HandSize;
         this._win_threshold = this._config.WinThreshold;
         this._check_5_doubles = this._config.Check5Doubles;
@@ -60,9 +78,12 @@ export class Engine {
         // }
 
         this._local = shout_f === null;
-        this._shout_f = shout_f;
-        this._whisper_f = whisper_f;
-        this._query_f = query_f;
+        if (this._local) {
+            throw new Error("Should not be local for now");
+        }
+        this._shout = shout_f;
+        this._whisper = whisper_f;
+        this._query = query_f;
         this.rl = this._local
             ? readline.createInterface({
                   input: process.stdin,
@@ -84,15 +105,17 @@ export class Engine {
         const winner = scores.findIndex(
             (score: number) => score === Math.max(...scores)
         );
-        this.shout(`Game is over!\n\nPlayer ${winner} wins!`);
-        // this.shout("", "game_over");
+        this.shout(
+            MessageType.GAME_OVER,
+            `Game is over!\n\nPlayer ${winner} wins!`
+        );
         return winner;
     }
 
     public async PlayRound(fresh_round = false) {
         this._board = new Board();
         this.DrawHands(fresh_round);
-        // this.shout("", "clear_board");
+        this.shout(MessageType.CLEAR_BOARD, "");
         if (fresh_round) {
             this._current_player = this.DetermineFirstPlayer();
         }
@@ -113,7 +136,7 @@ export class Engine {
             );
             console.log(`Player ${this._current_player} dominoed!`);
             this.ShowScores();
-            // this.shout("", "round_over");
+            this.shout(MessageType.ROUND_OVER, "");
             return false;
         } else if (blocked) {
             console.log("Game blocked!");
@@ -138,15 +161,15 @@ export class Engine {
             this._board.AddDomino(domino, direction);
             if (!this._local) {
                 this.shout(
-                    JSON.stringify(this.GetPlacementRep(domino, direction)),
-                    "AddDomino"
+                    MessageType.ADD_DOMINO,
+                    JSON.stringify(this.GetPlacementRep(domino, direction))
                 );
             }
             this._players[this._current_player].RemoveDomino(domino);
             this.whisper(
+                MessageType.HAND,
                 this._players[this._current_player].HandJSON,
-                this._current_player,
-                "hand"
+                this._current_player
             );
 
             this._players[this._current_player].AddPoints(this._board.Score);
@@ -177,8 +200,13 @@ export class Engine {
             }
             if (this.VerifyHands(hands, fresh_round, this._check_5_doubles)) {
                 for (let i = 0; i < this._n_players; i++) {
+                    console.log("Sending hand:", i);
                     this._players[i].AssignHand(hands[i]);
-                    this.whisper(this._players[i].HandJSON, i, "hand");
+                    this.whisper(
+                        MessageType.HAND,
+                        this._players[i].HandJSON,
+                        i
+                    );
                 }
                 return;
             }
@@ -274,9 +302,9 @@ export class Engine {
                 ).filter((i) => pretty_placements[i].dirs.length > 0);
                 // const playable_dominos = [i for i in range(len(pretty_placements)) if len(pretty_placements[i][2]) > 0]
                 this.whisper(
+                    MessageType.PLAYABLE_DOMINOS,
                     playable_dominos.toString(),
-                    player,
-                    "playable_dominos"
+                    player
                 );
             }
             const move_possible = !!possible_placements.find(
@@ -287,13 +315,17 @@ export class Engine {
                 try {
                     const query_msg = `Player ${player}, what domino do you select?\n`;
                     let domino_index;
-                    let response;
+                    let response: string;
                     if (this._local) {
-                        const response = await this.input(query_msg);
+                        response = await this.input(query_msg);
                         domino_index = parseInt(response.trim());
                     } else {
-                        this.whisper(query_msg, player, "prompt");
-                        response = this.GetResponse(player);
+                        console.log("HERE");
+                        response = await this.query(
+                            QueryType.DOMINO,
+                            query_msg,
+                            player
+                        );
                         domino_index = parseInt(response);
                     }
                     if (
@@ -304,9 +336,9 @@ export class Engine {
                         possible_placements[domino_index].dirs.length === 0
                     ) {
                         this.whisper(
+                            MessageType.ERROR,
                             "Invalid domino choice: " + domino_index.toString(),
-                            player,
-                            "error"
+                            player
                         );
                     } else {
                         const domino = possible_placements[domino_index].domino;
@@ -325,9 +357,14 @@ export class Engine {
                                         await this.input(query_msg)
                                     ).trim() as Direction;
                                 } else {
-                                    this.whisper(query_msg, player, "prompt");
-                                    response = this.GetResponse(player);
-                                    direction = response
+                                    // this.whisper(query_msg, player, "prompt");
+                                    const directionResponse = await this.query(
+                                        QueryType.DIRECTION,
+                                        query_msg,
+                                        player
+                                    );
+                                    // response = this.GetResponse(player);
+                                    direction = directionResponse
                                         .trim()
                                         .toUpperCase() as Direction;
                                 }
@@ -337,9 +374,9 @@ export class Engine {
                                     ].dirs.includes(direction as Direction)
                                 ) {
                                     this.whisper(
+                                        MessageType.ERROR,
                                         "Invalid direction: " + direction,
-                                        player,
-                                        "error"
+                                        player
                                     );
                                 } else {
                                     return { domino, direction };
@@ -348,7 +385,11 @@ export class Engine {
                         }
                     }
                 } catch (err) {
-                    this.whisper("Invalid input, try again", player, "error");
+                    this.whisper(
+                        MessageType.ERROR,
+                        "Invalid input, try again",
+                        player
+                    );
                 }
             } else {
                 const pulled = this._pack.Pull();
@@ -356,19 +397,27 @@ export class Engine {
                 if (this._local) {
                     const __ = await this.input(query_msg);
                 } else {
-                    this.whisper(query_msg, player, "prompt");
-                    const __ = this.GetResponse(player);
+                    // this.whisper(query_msg, player, "prompt");
+                    // const __ = this.GetResponse(player);
+                    const __ = await this.query(
+                        QueryType.PULL,
+                        query_msg,
+                        player
+                    );
                 }
 
                 if (pulled !== null) {
                     this._players[player].AddDomino(pulled[0]);
                     this.whisper(
+                        MessageType.HAND,
                         this._players[player].HandJSON,
-                        player,
-                        "hand"
+                        player
                     );
                 } else {
-                    this.shout("Pack is empty, cannot pull. Skipping turn");
+                    this.shout(
+                        MessageType.PACK_EMPTY,
+                        "Pack is empty, cannot pull. Skipping turn"
+                    );
                     return { domino: null, direction: null };
                 }
             }
@@ -425,9 +474,10 @@ export class Engine {
     }
 
     public ShowScores() {
-        if (this._local) {
-            this.shout("Scores:" + JSON.stringify(this.GetScores()), "scores");
-        }
+        this.shout(
+            MessageType.SCORES,
+            "Scores:" + JSON.stringify(this.GetScores())
+        );
     }
 
     public GetResponse(player: number, print_wait: boolean = false) {
@@ -447,20 +497,22 @@ export class Engine {
         // }
     }
 
-    public whisper(message: string, player: number, tag: string = null) {
+    public whisper(type: MessageType, message: string, player: number) {
         if (this._local) {
             console.log("whisper to player:", player, ":", message);
             // this._whisper_f(message, player, tag);
             // this.input(message);
+        } else {
+            this._whisper(type, message, player);
         }
     }
 
-    public shout(message: string, tag: string = null) {
-        if (!this._local) {
-            // this._shout_f(message, tag);
-        }
+    public shout(type: MessageType, message: string) {
         if (this._local) {
             console.log("shout:", message);
+        } else {
+            // this._shout_f(message, tag);
+            this._shout(type, message);
         }
     }
 
@@ -468,13 +520,21 @@ export class Engine {
     //     await new Promise((resolve) => setTimeout(resolve, duration / 1000));
     // }
 
-    private input(message: string): Promise<string> {
+    public input(message: string): Promise<string> {
         // const response = readlineSync.question(message);
         // return response;
         return new Promise((resolve, reject) => {
             this.rl.question(message, (input: string) => resolve(input));
         });
     }
+
+    public query = (
+        type: QueryType,
+        message: string,
+        player: number
+    ): Promise<string> => {
+        return this._query(type, message, player);
+    };
 }
 
 // if __name__ == "__main__":

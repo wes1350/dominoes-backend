@@ -2,6 +2,7 @@ import express, { response } from "express";
 import * as http from "http";
 import { Socket } from "socket.io";
 import { Engine } from "./Engine";
+import { sleep } from "./utils";
 const app = express();
 const server = http.createServer(app);
 const { Server } = require("socket.io");
@@ -92,19 +93,34 @@ const emitToClient = (type: MessageType, message: string, player: number) => {
     io.to(playersToSockets.get(player).id).emit(type as string, message);
 };
 
-const queryClient = (
+const queryClient = async (
     type: QueryType,
     message: string,
     player: number
 ): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        io.to(playersToSockets.get(player).id).emit(
-            type as string,
-            message,
-            (res: string) => {
-                resolve(res);
+    console.log("IN QUERY");
+    let sent = false;
+    return new Promise(async (resolve) => {
+        console.log("INSIDE PROMISE");
+        // console.log("type:", type);
+        while (true) {
+            console.log("loop");
+            if (!sent) {
+                sent = true;
+                // io.to(playersToSockets.get(player).id).emit(
+                playersToSockets
+                    .get(player)
+                    .emit(type as string, message, (res: string) => {
+                        console.log("Got res:", res);
+                        resolve(res);
+                    });
             }
-        );
+            await sleep(1000);
+        }
+
+        // while (waiting) {
+        //     sleep(1000);
+        // }
     });
 };
 

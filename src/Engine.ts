@@ -154,7 +154,9 @@ export class Engine {
     }
 
     public async PlayTurn(play_fresh = false) {
+        console.log("BEFORE MOVE");
         const move = await this.queryMove(this._current_player, play_fresh);
+        console.log("AFTER MOVE");
         const domino = move.domino;
         const direction = move.direction;
         if (domino !== null) {
@@ -281,6 +283,7 @@ export class Engine {
         play_fresh = false
     ): Promise<{ domino: Domino; direction: Direction }> {
         while (true) {
+            console.log("In while");
             const possible_placements = this._board.GetValidPlacementsForHand(
                 this._players[player].Hand,
                 play_fresh
@@ -306,6 +309,7 @@ export class Engine {
                     playable_dominos.toString(),
                     player
                 );
+                console.log("sent playable dominos");
             }
             const move_possible = !!possible_placements.find(
                 (p) => p.dirs.length > 0
@@ -326,6 +330,7 @@ export class Engine {
                             query_msg,
                             player
                         );
+                        console.log("type:", typeof response);
                         domino_index = parseInt(response);
                     }
                     if (
@@ -460,24 +465,68 @@ export class Engine {
         }
     }
 
-    public GetPlacementRep(domino: Domino, direction: Direction) {
-        const rendered_position = this._board.GetRenderedPosition(
-            domino,
-            direction
-        );
+    public GetPlacementRep(domino: Domino, addedDirection: Direction) {
+        // const rendered_position = this._board.GetRenderedPosition(
+        //     domino,
+        //     direction
+        // );
+        // return {
+        //     face1: domino.Head,
+        //     face2: domino.Tail,
+        //     face1loc: rendered_position["1"],
+        //     face2loc: rendered_position["2"]
+        // };
+        let dominoOrientationDirection: Direction;
+        if (
+            addedDirection === Direction.NONE ||
+            addedDirection === Direction.EAST ||
+            addedDirection === Direction.WEST
+        ) {
+            if (domino.IsDouble()) {
+                dominoOrientationDirection = Direction.SOUTH;
+            } else {
+                dominoOrientationDirection = domino.IsReversed()
+                    ? Direction.WEST
+                    : Direction.EAST;
+            }
+        } else if (
+            addedDirection === Direction.NORTH ||
+            addedDirection === Direction.SOUTH
+        ) {
+            if (domino.IsDouble()) {
+                dominoOrientationDirection = Direction.EAST;
+            } else {
+                dominoOrientationDirection = domino.IsReversed()
+                    ? Direction.NORTH
+                    : Direction.SOUTH;
+            }
+        }
+
+        const dominoCoordinates =
+            addedDirection === Direction.NONE
+                ? { x: 0, y: 0 }
+                : addedDirection === Direction.NORTH
+                ? this._board.NorthEdge
+                : addedDirection === Direction.EAST
+                ? this._board.EastEdge
+                : addedDirection === Direction.SOUTH
+                ? this._board.SouthEdge
+                : addedDirection === Direction.WEST
+                ? this._board.WestEdge
+                : null;
+
         return {
             face1: domino.Head,
             face2: domino.Tail,
-            face1loc: rendered_position["1"],
-            face2loc: rendered_position["2"]
+            direction: dominoOrientationDirection,
+            x: dominoCoordinates.x,
+            y: dominoCoordinates.y
         };
     }
 
     public ShowScores() {
-        this.shout(
-            MessageType.SCORES,
-            "Scores:" + JSON.stringify(this.GetScores())
-        );
+        console.log("Scores:");
+        this.shout(MessageType.SCORES, JSON.stringify(this.GetScores()));
     }
 
     public GetResponse(player: number, print_wait: boolean = false) {

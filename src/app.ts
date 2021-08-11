@@ -2,6 +2,7 @@ import express, { response } from "express";
 import * as http from "http";
 import { Socket } from "socket.io";
 import { Engine } from "./Engine";
+import { MessageType, QueryType } from "./Enums";
 import { sleep } from "./utils";
 const app = express();
 const server = http.createServer(app);
@@ -16,29 +17,6 @@ const io = new Server(server, {
     },
     allowEIO3: true
 });
-
-// app.get("/", (req: express.Request, res: express.Response) => {
-//     // res.sendFile(__dirname + "/index.html");
-// });
-
-export enum QueryType {
-    DOMINO = "DOMINO",
-    DIRECTION = "DIRECTION",
-    PULL = "PULL"
-}
-
-export enum MessageType {
-    ADD_DOMINO = "ADD_DOMINO",
-    PLAYABLE_DOMINOS = "PLAYABLE_DOMINOS",
-    HAND = "HAND",
-    GAME_START = "GAME_START",
-    GAME_OVER = "GAME_OVER",
-    ROUND_OVER = "ROUND_OVER",
-    PACK_EMPTY = "PACK_EMPTY",
-    CLEAR_BOARD = "CLEAR_BOARD",
-    SCORES = "SCORES",
-    ERROR = "ERROR"
-}
 
 const playersToSockets = new Map<number, Socket>();
 // const responses = new Map<string, any>();
@@ -56,19 +34,39 @@ io.on("connection", (socket: Socket) => {
         console.log("user disconnected");
     });
 
-    socket.on("GAME_START", (socket: Socket) => {
+    socket.on(MessageType.GAME_START, (socket: Socket) => {
         console.log("starting game");
-        broadcast(MessageType.GAME_START, "");
-        const winner = new Engine(
+        // const gameDetails = { players: [], dominoes: [] };
+
+        // io.emit(MessageType.GAME_START as string, gameDetails);
+        // io.emit(MessageType.GAME_START as string);
+
+        // broadcast(MessageType.GAME_START, {
+
+        // });
+        const engine = new Engine(
             Array.from(playersToSockets.keys()).length,
             emitToClient,
             broadcast,
             queryClient
-        )
-            .RunGame()
-            .then(() => {
-                console.log("Winner:", winner);
-            });
+        );
+
+        engine.InitializeRound(true);
+
+        Array.from(playersToSockets.keys()).forEach((player: number) => {
+            const socket = playersToSockets.get(player);
+            const gameDetails = {
+                players: engine.PlayerRepresentationsForSeat(player),
+                dominoes: engine.Players[player].Hand.map((domino) => {
+                    return { face1: domino.Big, face2: domino.Small };
+                })
+            };
+            socket.emit(MessageType.GAME_START, gameDetails);
+        });
+
+        engine.RunGame().then(() => {
+            // console.log("Winner:", winner);
+        });
     });
 });
 

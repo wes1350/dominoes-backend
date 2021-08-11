@@ -16,7 +16,7 @@ import { Pack } from "./Pack";
 import { Player } from "./Player";
 import * as _ from "lodash";
 import * as readline from "readline";
-import { QueryType, MessageType } from "./app";
+import { QueryType, MessageType } from "./Enums";
 
 export class Engine {
     private _config: Config;
@@ -95,8 +95,12 @@ export class Engine {
     public async RunGame() {
         // Start && run a game until completion, handling game logic as necessary.
         this.ShowScores();
+        if (this._local) {
+            this.InitializeRound(true);
+        }
         let next_round_fresh = await this.PlayRound(true);
         while (!this.GameIsOver()) {
+            this.InitializeRound(next_round_fresh);
             next_round_fresh = await this.PlayRound(next_round_fresh);
         }
 
@@ -112,10 +116,13 @@ export class Engine {
         return winner;
     }
 
-    public async PlayRound(fresh_round = false) {
+    public InitializeRound(fresh_round = false) {
         this._board = new Board();
         this.DrawHands(fresh_round);
         this.shout(MessageType.CLEAR_BOARD, "");
+    }
+
+    public async PlayRound(fresh_round = false) {
         if (fresh_round) {
             this._current_player = this.DetermineFirstPlayer();
         }
@@ -276,6 +283,22 @@ export class Engine {
 
     public GetPlayerScore(player: number) {
         return this._players[player].Score;
+    }
+
+    public PlayerRepresentationsForSeat(
+        seatNumber: number
+    ): { seatNumber: number; name: string; isMe: boolean }[] {
+        return this._players.map((player, i) => {
+            return {
+                seatNumber: i,
+                name: player.Id.toString(),
+                isMe: i === seatNumber
+            };
+        });
+    }
+
+    public get Players(): Player[] {
+        return this._players;
     }
 
     public async queryMove(
@@ -525,7 +548,6 @@ export class Engine {
     }
 
     public ShowScores() {
-        console.log("Scores:");
         this.shout(MessageType.SCORES, JSON.stringify(this.GetScores()));
     }
 

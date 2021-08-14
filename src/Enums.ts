@@ -1,7 +1,7 @@
 export enum QueryType {
-    DOMINO = "DOMINO",
-    DIRECTION = "DIRECTION",
-    PULL = "PULL"
+    DOMINO = "QUERY_DOMINO",
+    DIRECTION = "QUERY_DIRECTION",
+    PULL = "QUERY_PULL"
 }
 
 export enum MessageType {
@@ -15,4 +15,12 @@ export enum MessageType {
     CLEAR_BOARD = "CLEAR_BOARD",
     SCORES = "SCORES",
     ERROR = "ERROR"
+}
+
+export enum Direction {
+    NORTH = "N",
+    EAST = "E",
+    SOUTH = "S",
+    WEST = "W",
+    NONE = ""
 }

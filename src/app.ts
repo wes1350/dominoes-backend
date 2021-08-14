@@ -13,18 +13,19 @@ const io = new Server(server, {
         methods: ["GET", "POST"],
         transports: ["websocket", "polling"],
         credentials: true
-        // methods: ["GET", "POST"]
     },
     allowEIO3: true
 });
 
 const playersToSockets = new Map<number, Socket>();
-// const responses = new Map<string, any>();
+const playersToResponses = new Map<number, Map<string, string>>();
 
 io.on("connection", (socket: Socket) => {
     console.log("a user connected");
     console.log(Array.from(playersToSockets.keys()).length);
-    playersToSockets.set(Array.from(playersToSockets.keys()).length, socket);
+    const playerNumber = Array.from(playersToSockets.keys()).length;
+    playersToSockets.set(playerNumber, socket);
+    playersToResponses.set(playerNumber, new Map<string, string>());
 
     // socket.on("response", (response: any) => {
     //     responses.set(socket.id, response);
@@ -68,6 +69,11 @@ io.on("connection", (socket: Socket) => {
             // console.log("Winner:", winner);
         });
     });
+
+    socket.onAny((eventName: string, response: string) => {
+        console.log("received:", eventName, " -- response:", response);
+        playersToResponses.get(playerNumber).set(eventName, response);
+    });
 });
 
 // const broadcast = (socket: Socket) => {
@@ -88,7 +94,7 @@ const broadcast = (type: MessageType, message: string) => {
 // };
 
 const emitToClient = (type: MessageType, message: string, player: number) => {
-    io.to(playersToSockets.get(player).id).emit(type as string, message);
+    playersToSockets.get(player).emit(type as string, message);
 };
 
 const queryClient = async (
@@ -97,29 +103,16 @@ const queryClient = async (
     player: number
 ): Promise<string> => {
     console.log("IN QUERY");
-    let sent = false;
-    return new Promise(async (resolve) => {
-        console.log("INSIDE PROMISE");
-        // console.log("type:", type);
-        while (true) {
-            console.log("loop");
-            if (!sent) {
-                sent = true;
-                // io.to(playersToSockets.get(player).id).emit(
-                playersToSockets
-                    .get(player)
-                    .emit(type as string, message, (res: string) => {
-                        console.log("Got res:", res);
-                        resolve(res);
-                    });
-            }
-            await sleep(1000);
-        }
+    console.log("type:", type, "message:", message, "player:", player);
+    playersToResponses.get(player).delete(type);
+    playersToSockets.get(player).emit(type as string, message);
 
-        // while (waiting) {
-        //     sleep(1000);
-        // }
-    });
+    while (!playersToResponses.get(player).get(type)) {
+        console.log("waiting");
+        await sleep(1000);
+    }
+
+    return playersToResponses.get(player).get(type);
 };
 
 // def emit_to_client(msg, client_id, tag=None, clear=True):

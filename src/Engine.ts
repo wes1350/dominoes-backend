@@ -5,7 +5,7 @@
 // from dominos.classes.Pack import Pack
 // from dominos.classes.Player import Player
 
-import { Board, Direction } from "./Board";
+import { Board } from "./Board";
 // var Board = require("./Board");
 // var Config = require("./Config");
 // var Pack = require("./Pack");
@@ -16,7 +16,7 @@ import { Pack } from "./Pack";
 import { Player } from "./Player";
 import * as _ from "lodash";
 import * as readline from "readline";
-import { QueryType, MessageType } from "./Enums";
+import { QueryType, MessageType, Direction } from "./Enums";
 
 export class Engine {
     private _config: Config;
@@ -166,6 +166,7 @@ export class Engine {
         console.log("AFTER MOVE");
         const domino = move.domino;
         const direction = move.direction;
+        console.log("Direction:", direction)
         if (domino !== null) {
             this._board.AddDomino(domino, direction);
             if (!this._local) {
@@ -537,6 +538,9 @@ export class Engine {
                 : addedDirection === Direction.WEST
                 ? this._board.WestEdge
                 : null;
+
+        console.log(addedDirection, dominoOrientationDirection)
+        console.log(dominoCoordinates)
 
         return {
             face1: domino.Head,

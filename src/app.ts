@@ -78,11 +78,11 @@ io.on("connection", (socket: Socket) => {
 
 // const broadcast = (socket: Socket) => {
 // return (message: string, tag?: string) => {
-const broadcast = (type: MessageType, message: string) => {
+const broadcast = (type: MessageType, payload: string | object) => {
     // Send a message to all clients
     // clear_old_info(room)
     // if (!tag) {
-    io.emit(type as string, message);
+    io.emit(type as string, payload);
     // } else {
     //     throw new Error("Tags not supported yet");
     // }

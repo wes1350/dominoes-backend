@@ -36,8 +36,13 @@ export class Board {
         return this._board.get(x)?.get(y);
     }
 
-    public AddDomino(domino: Domino, direction = Direction.NONE) {
+    public AddDomino(
+        domino: Domino,
+        direction = Direction.NONE
+    ): { x: number; y: number } {
         let [valid, reverse] = this.VerifyPlacement(domino, direction);
+        console.log("adding domino:", domino, valid, reverse);
+        let x, y;
         if (!valid) {
             throw new Error(
                 `Domino ${domino.Rep} cannot be added in the ${direction} direction`
@@ -51,7 +56,8 @@ export class Board {
                     "Must specify a valid direction if the board contains dominos"
                 );
             }
-            this._addToBoard(domino, 0, 0);
+            x = 0;
+            y = 0;
             this._north = 0;
             this._east = 0;
             this._south = 0;
@@ -68,10 +74,12 @@ export class Board {
                 );
             }
             this._north += 1;
-            this._addToBoard(domino, this._spinner_x, this._north);
+            x = this._spinner_x;
+            y = this._north;
         } else if (direction === Direction.EAST) {
             this._east += 1;
-            this._addToBoard(domino, this._east, 0);
+            x = this._east;
+            y = 0;
             if (this._spinner_x === null && domino.IsDouble()) {
                 this._spinner_x = this._east;
                 domino.MarkAsSpinner();
@@ -83,10 +91,12 @@ export class Board {
                 );
             }
             this._south -= 1;
-            this._addToBoard(domino, this._spinner_x, this._south);
+            x = this._spinner_x;
+            y = this._south;
         } else if (direction === Direction.WEST) {
             this._west -= 1;
-            this._addToBoard(domino, this._west, 0);
+            x = this._west;
+            y = 0;
             if (this._spinner_x === null && domino.IsDouble()) {
                 this._spinner_x = this._west;
                 domino.MarkAsSpinner();
@@ -95,9 +105,11 @@ export class Board {
             throw new Error("Unknown direction:" + direction);
         }
 
+        this._addToBoard(domino, x, y);
         if (reverse) {
             domino.Reverse();
         }
+        return { x, y };
     }
 
     public VerifyPlacement(domino: Domino, direction: Direction): boolean[] {

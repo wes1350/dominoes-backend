@@ -1,3 +1,5 @@
+import { DominoDescription } from "./DominoDescription";
+
 export class Domino {
     private _ends: { big: number; small: number };
     private _is_spinner: boolean;

@@ -30,7 +30,7 @@ export class Engine {
     private _current_player: number;
     private _n_passes: number;
     private _local: boolean;
-    private _shout: (type: MessageType, message: string) => void;
+    private _shout: (type: MessageType, payload: string | object) => void;
     private _whisper: (
         type: MessageType,
         message: string,
@@ -50,7 +50,7 @@ export class Engine {
             message: string,
             index: number
         ) => void = null,
-        shout_f: (type: MessageType, message: string) => void = null,
+        shout_f: (type: MessageType, payload: string | object) => void = null,
         query_f: (
             type: QueryType,
             message: string,
@@ -166,14 +166,22 @@ export class Engine {
         console.log("AFTER MOVE");
         const domino = move.domino;
         const direction = move.direction;
-        console.log("Direction:", direction)
+        console.log("Direction:", direction);
         if (domino !== null) {
-            this._board.AddDomino(domino, direction);
+            const addedCoordinate = this._board.AddDomino(domino, direction);
+            const placementRep = this.GetPlacementRep(domino, direction);
             if (!this._local) {
-                this.shout(
-                    MessageType.ADD_DOMINO,
-                    JSON.stringify(this.GetPlacementRep(domino, direction))
-                );
+                this.shout(MessageType.TURN, {
+                    seat: this._current_player,
+                    domino: {
+                        face1: domino.Big,
+                        face2: domino.Small,
+                        direction: placementRep.direction,
+                        x: addedCoordinate.x,
+                        y: addedCoordinate.y
+                    },
+                    score: this._board.Score
+                });
             }
             this._players[this._current_player].RemoveDomino(domino);
             this.whisper(
@@ -193,6 +201,7 @@ export class Engine {
         }
 
         console.log(this._board.Rep);
+
         return false;
     }
 
@@ -490,16 +499,6 @@ export class Engine {
     }
 
     public GetPlacementRep(domino: Domino, addedDirection: Direction) {
-        // const rendered_position = this._board.GetRenderedPosition(
-        //     domino,
-        //     direction
-        // );
-        // return {
-        //     face1: domino.Head,
-        //     face2: domino.Tail,
-        //     face1loc: rendered_position["1"],
-        //     face2loc: rendered_position["2"]
-        // };
         let dominoOrientationDirection: Direction;
         if (
             addedDirection === Direction.NONE ||
@@ -539,8 +538,8 @@ export class Engine {
                 ? this._board.WestEdge
                 : null;
 
-        console.log(addedDirection, dominoOrientationDirection)
-        console.log(dominoCoordinates)
+        console.log(addedDirection, dominoOrientationDirection);
+        console.log(dominoCoordinates);
 
         return {
             face1: domino.Head,
@@ -582,12 +581,12 @@ export class Engine {
         }
     }
 
-    public shout(type: MessageType, message: string) {
+    public shout(type: MessageType, payload: string | object) {
         if (this._local) {
-            console.log("shout:", message);
+            console.log("shout:", payload);
         } else {
             // this._shout_f(message, tag);
-            this._shout(type, message);
+            this._shout(type, payload);
         }
     }
 

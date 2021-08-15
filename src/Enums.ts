@@ -14,7 +14,8 @@ export enum MessageType {
     PACK_EMPTY = "PACK_EMPTY",
     CLEAR_BOARD = "CLEAR_BOARD",
     SCORES = "SCORES",
-    ERROR = "ERROR"
+    ERROR = "ERROR",
+    TURN = "TURN"
 }
 
 export enum Direction {

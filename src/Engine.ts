@@ -33,7 +33,7 @@ export class Engine {
     private _shout: (type: MessageType, payload: string | object) => void;
     private _whisper: (
         type: MessageType,
-        message: string,
+        payload: string | any,
         index: number
     ) => void;
     private _query: (
@@ -47,7 +47,7 @@ export class Engine {
         n_players: number,
         whisper_f: (
             type: MessageType,
-            message: string,
+            payload: string | any,
             index: number
         ) => void = null,
         shout_f: (type: MessageType, payload: string | object) => void = null,
@@ -184,11 +184,17 @@ export class Engine {
                 });
             }
             this._players[this._current_player].RemoveDomino(domino);
-            this.whisper(
-                MessageType.HAND,
-                this._players[this._current_player].HandJSON,
-                this._current_player
-            );
+            if (!this._local) {
+                this.whisper(
+                    MessageType.HAND,
+                    // this._players[this._current_player].HandJSON,
+                    this._players[this._current_player].HandRep,
+                    this._current_player
+                );
+                this.shout(MessageType.OPPONENT_DOMINO_PLAYED, {
+                    player: this._current_player
+                });
+            }
 
             this._players[this._current_player].AddPoints(this._board.Score);
             this._n_passes = 0;
@@ -431,20 +437,24 @@ export class Engine {
                 }
             } else {
                 const pulled = this._pack.Pull();
-                const query_msg = `Player ${player}, you have no valid moves. Send a blank input to pull\n`;
-                if (this._local) {
-                    const __ = await this.input(query_msg);
-                } else {
-                    // this.whisper(query_msg, player, "prompt");
-                    // const __ = this.GetResponse(player);
-                    const __ = await this.query(
-                        QueryType.PULL,
-                        query_msg,
-                        player
-                    );
-                }
+                // const query_msg = `Player ${player}, you have no valid moves. Send a blank input to pull\n`;
+                // if (this._local) {
+                //     const __ = await this.input(query_msg);
+                // } else {
+                //     // this.whisper(query_msg, player, "prompt");
+                //     // const __ = this.GetResponse(player);
+                //     const __ = await this.query(
+                //         QueryType.PULL,
+                //         query_msg,
+                //         player
+                //     );
+                // }
 
                 if (pulled !== null) {
+                    this.shout(
+                        MessageType.PULL,
+                        `Player ${player} cannot play, pulls a domino`
+                    );
                     this._players[player].AddDomino(pulled[0]);
                     this.whisper(
                         MessageType.HAND,
@@ -454,7 +464,7 @@ export class Engine {
                 } else {
                     this.shout(
                         MessageType.PACK_EMPTY,
-                        "Pack is empty, cannot pull. Skipping turn"
+                        `Player ${player} cannot play and pack is empty, skipping turn`
                     );
                     return { domino: null, direction: null };
                 }
@@ -571,13 +581,13 @@ export class Engine {
         // }
     }
 
-    public whisper(type: MessageType, message: string, player: number) {
+    public whisper(type: MessageType, payload: string | any, player: number) {
         if (this._local) {
-            console.log("whisper to player:", player, ":", message);
+            console.log("whisper to player:", player, ":", payload);
             // this._whisper_f(message, player, tag);
             // this.input(message);
         } else {
-            this._whisper(type, message, player);
+            this._whisper(type, payload, player);
         }
     }
 

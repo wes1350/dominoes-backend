@@ -60,4 +60,11 @@ export class Player {
             this._hand.map((domino) => [domino.Head, domino.Tail])
         );
     }
+
+    public get HandRep(): { face1: number; face2: number }[] {
+        return this.Hand.map((domino) => ({
+            face1: domino.Big,
+            face2: domino.Small
+        }));
+    }
 }

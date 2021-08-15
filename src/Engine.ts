@@ -187,7 +187,6 @@ export class Engine {
             if (!this._local) {
                 this.whisper(
                     MessageType.HAND,
-                    // this._players[this._current_player].HandJSON,
                     this._players[this._current_player].HandRep,
                     this._current_player
                 );
@@ -464,11 +463,19 @@ export class Engine {
                         `Player ${player} cannot play, pulls a domino`
                     );
                     this._players[player].AddDomino(pulled[0]);
-                    this.whisper(
-                        MessageType.HAND,
-                        this._players[player].HandJSON,
-                        player
-                    );
+                    if (this._local) {
+                        this.whisper(
+                            MessageType.HAND,
+                            this._players[player].HandJSON,
+                            player
+                        );
+                    } else {
+                        this.whisper(
+                            MessageType.HAND,
+                            this._players[player].HandRep,
+                            player
+                        );
+                    }
                 } else {
                     this.shout(
                         MessageType.PACK_EMPTY,

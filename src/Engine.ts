@@ -227,11 +227,19 @@ export class Engine {
                 for (let i = 0; i < this._n_players; i++) {
                     console.log("Sending hand:", i);
                     this._players[i].AssignHand(hands[i]);
-                    this.whisper(
-                        MessageType.HAND,
-                        this._players[i].HandJSON,
-                        i
-                    );
+                    if (this._local) {
+                        this.whisper(
+                            MessageType.HAND,
+                            this._players[i].HandJSON,
+                            i
+                        );
+                    } else {
+                        this.whisper(
+                            MessageType.HAND,
+                            this._players[i].HandRep,
+                            i
+                        );
+                    }
                 }
                 return;
             }

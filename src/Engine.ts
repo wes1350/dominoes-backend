@@ -191,7 +191,7 @@ export class Engine {
                     this._players[this._current_player].HandRep,
                     this._current_player
                 );
-                this.shout(MessageType.OPPONENT_DOMINO_PLAYED, {
+                this.shout(MessageType.DOMINO_PLAYED, {
                     player: this._current_player
                 });
             }

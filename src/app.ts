@@ -107,9 +107,9 @@ const queryClient = async (
     playersToResponses.get(player).delete(type);
     playersToSockets.get(player).emit(type as string, message);
 
+    console.log("waiting");
     while (!playersToResponses.get(player).get(type)) {
-        console.log("waiting");
-        await sleep(1000);
+        await sleep(100);
     }
 
     return playersToResponses.get(player).get(type);

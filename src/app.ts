@@ -54,12 +54,14 @@ io.on("connection", (socket: Socket) => {
         Array.from(playersToSockets.keys()).forEach((player: number) => {
             const gameDetails = {
                 players: engine.PlayerRepresentationsForSeat(player),
-                dominoes: engine.Players[player].Hand.map((domino) => {
-                    return { face1: domino.Big, face2: domino.Small };
-                })
+                currentPlayer: engine.CurrentPlayer,
+                config: {
+                    n_dominoes: 7
+                }
             };
             const socket = playersToSockets.get(player);
             socket.emit(MessageType.GAME_START, gameDetails);
+            socket.emit(MessageType.HAND, engine.Players[player].HandRep);
         });
 
         engine.RunGame().then(() => {

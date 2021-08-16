@@ -17,7 +17,8 @@ export enum MessageType {
     ERROR = "ERROR",
     TURN = "TURN",
     PULL = "PULL",
-    DOMINO_PLAYED = "DOMINO_PLAYED"
+    DOMINO_PLAYED = "DOMINO_PLAYED",
+    CURRENT_PLAYER = "CURRENT_PLAYER"
 }
 
 export enum Direction {

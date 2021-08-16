@@ -19,12 +19,8 @@ export class Engine {
     private _current_player: number;
     private _n_passes: number;
     private _local: boolean;
-    private _shout: (type: MessageType, payload: string | object) => void;
-    private _whisper: (
-        type: MessageType,
-        payload: string | any,
-        index: number
-    ) => void;
+    private _shout: (type: MessageType, payload: any) => void;
+    private _whisper: (type: MessageType, payload: any, index: number) => void;
     private _query: (
         type: QueryType,
         message: string,
@@ -36,10 +32,10 @@ export class Engine {
         n_players: number,
         whisper_f: (
             type: MessageType,
-            payload: string | any,
+            payload: any,
             index: number
         ) => void = null,
-        shout_f: (type: MessageType, payload: string | object) => void = null,
+        shout_f: (type: MessageType, payload: any) => void = null,
         query_f: (
             type: QueryType,
             message: string,
@@ -114,6 +110,9 @@ export class Engine {
     public async PlayRound(fresh_round = false) {
         if (fresh_round) {
             this._current_player = this.DetermineFirstPlayer();
+        }
+        if (!this._local) {
+            this.shout(MessageType.CURRENT_PLAYER, this._current_player);
         }
         let blocked = false;
         let play_fresh = fresh_round;
@@ -202,6 +201,10 @@ export class Engine {
     public NextTurn() {
         // Update the player to move.
         this._current_player = (this._current_player + 1) % this._n_players;
+    }
+
+    public get CurrentPlayer(): number {
+        return this._current_player;
     }
 
     public DrawHands(fresh_round = false) {
@@ -585,7 +588,7 @@ export class Engine {
         // }
     }
 
-    public whisper(type: MessageType, payload: string | any, player: number) {
+    public whisper(type: MessageType, payload: any, player: number) {
         if (this._local) {
             console.log("whisper to player:", player, ":", payload);
             // this._whisper_f(message, player, tag);
@@ -595,7 +598,7 @@ export class Engine {
         }
     }
 
-    public shout(type: MessageType, payload: string | object) {
+    public shout(type: MessageType, payload: any) {
         if (this._local) {
             console.log("shout:", payload);
         } else {
@@ -624,7 +627,3 @@ export class Engine {
         return this._query(type, message, player);
     };
 }
-
-// if __name__ == "__main__":
-//     e = Engine()
-//     winner = e.run_game()

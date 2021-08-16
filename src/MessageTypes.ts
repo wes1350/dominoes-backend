@@ -10,3 +10,7 @@ export interface GameStartMessage {
         n_dominoes: number;
     };
 }
+
+export interface NewRoundMessage {
+    currentPlayer: number;
+}

@@ -112,7 +112,9 @@ export class Engine {
             this._current_player = this.DetermineFirstPlayer();
         }
         if (!this._local) {
-            this.shout(MessageType.CURRENT_PLAYER, this._current_player);
+            this.shout(MessageType.NEW_ROUND, {
+                currentPlayer: this._current_player
+            });
         }
         let blocked = false;
         let play_fresh = fresh_round;
@@ -179,7 +181,7 @@ export class Engine {
                     this._current_player
                 );
                 this.shout(MessageType.DOMINO_PLAYED, {
-                    player: this._current_player
+                    seat: this._current_player
                 });
             }
 
@@ -436,24 +438,18 @@ export class Engine {
                 }
             } else {
                 const pulled = this._pack.Pull();
-                // const query_msg = `Player ${player}, you have no valid moves. Send a blank input to pull\n`;
-                // if (this._local) {
-                //     const __ = await this.input(query_msg);
-                // } else {
-                //     // this.whisper(query_msg, player, "prompt");
-                //     // const __ = this.GetResponse(player);
-                //     const __ = await this.query(
-                //         QueryType.PULL,
-                //         query_msg,
-                //         player
-                //     );
-                // }
 
                 if (pulled !== null) {
-                    this.shout(
-                        MessageType.PULL,
-                        `Player ${player} cannot play, pulls a domino`
-                    );
+                    if (this._local) {
+                        this.shout(
+                            MessageType.PULL,
+                            `Player ${player} cannot play, pulls a domino`
+                        );
+                    } else {
+                        this.shout(MessageType.PULL, {
+                            seat: this._current_player
+                        });
+                    }
                     this._players[player].AddDomino(pulled[0]);
                     if (this._local) {
                         this.whisper(

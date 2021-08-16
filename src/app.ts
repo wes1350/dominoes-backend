@@ -1,4 +1,4 @@
-import express, { response } from "express";
+import express from "express";
 import * as http from "http";
 import { Socket } from "socket.io";
 import { Engine } from "./Engine";
@@ -18,33 +18,30 @@ const io = new Server(server, {
 });
 
 const playersToSockets = new Map<number, Socket>();
-const playersToResponses = new Map<number, Map<string, string>>();
+const socketIdsToSockets = new Map<string, Socket>();
+const socketIdsToResponses = new Map<string, Map<string, string>>();
 
 io.on("connection", (socket: Socket) => {
     console.log("a user connected");
-    console.log(Array.from(playersToSockets.keys()).length);
-    const playerNumber = Array.from(playersToSockets.keys()).length;
-    playersToSockets.set(playerNumber, socket);
-    playersToResponses.set(playerNumber, new Map<string, string>());
-
-    // socket.on("response", (response: any) => {
-    //     responses.set(socket.id, response);
-    // });
+    socketIdsToSockets.set(socket.id, socket);
 
     socket.on("disconnect", () => {
+        socketIdsToSockets.delete(socket.id);
         console.log("user disconnected");
     });
 
     socket.on(MessageType.GAME_START, (socket: Socket) => {
         console.log("starting game");
-        // const gameDetails = { players: [], dominoes: [] };
+        // Assign player numbers
+        Array.from(socketIdsToSockets.values()).forEach(
+            (socket: Socket, i: number) => {
+                playersToSockets.set(i, socket);
+                socketIdsToResponses.set(socket.id, new Map<string, string>());
+            }
+        );
 
-        // io.emit(MessageType.GAME_START as string, gameDetails);
-        // io.emit(MessageType.GAME_START as string);
+        setUpSocketsForGame();
 
-        // broadcast(MessageType.GAME_START, {
-
-        // });
         const engine = new Engine(
             Array.from(playersToSockets.keys()).length,
             emitToClient,
@@ -55,13 +52,13 @@ io.on("connection", (socket: Socket) => {
         engine.InitializeRound(true);
 
         Array.from(playersToSockets.keys()).forEach((player: number) => {
-            const socket = playersToSockets.get(player);
             const gameDetails = {
                 players: engine.PlayerRepresentationsForSeat(player),
                 dominoes: engine.Players[player].Hand.map((domino) => {
                     return { face1: domino.Big, face2: domino.Small };
                 })
             };
+            const socket = playersToSockets.get(player);
             socket.emit(MessageType.GAME_START, gameDetails);
         });
 
@@ -69,12 +66,16 @@ io.on("connection", (socket: Socket) => {
             // console.log("Winner:", winner);
         });
     });
-
-    socket.onAny((eventName: string, response: string) => {
-        console.log("received:", eventName, " -- response:", response);
-        playersToResponses.get(playerNumber).set(eventName, response);
-    });
 });
+
+const setUpSocketsForGame = () => {
+    Array.from(socketIdsToSockets.values()).forEach((socket) => {
+        socket.onAny((eventName: string, response: string) => {
+            console.log("received:", eventName, " -- response:", response);
+            socketIdsToResponses.get(socket.id).set(eventName, response);
+        });
+    });
+};
 
 // const broadcast = (socket: Socket) => {
 // return (message: string, tag?: string) => {
@@ -104,15 +105,16 @@ const queryClient = async (
 ): Promise<string> => {
     console.log("IN QUERY");
     console.log("type:", type, "message:", message, "player:", player);
-    playersToResponses.get(player).delete(type);
+    const socketId = playersToSockets.get(player).id;
+    socketIdsToResponses.get(socketId).delete(type);
     playersToSockets.get(player).emit(type as string, message);
 
     console.log("waiting");
-    while (!playersToResponses.get(player).get(type)) {
+    while (!socketIdsToResponses.get(socketId).get(type)) {
         await sleep(100);
     }
 
-    return playersToResponses.get(player).get(type);
+    return socketIdsToResponses.get(socketId).get(type);
 };
 
 // def emit_to_client(msg, client_id, tag=None, clear=True):

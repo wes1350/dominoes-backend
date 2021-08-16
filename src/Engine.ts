@@ -1,15 +1,4 @@
-// import sys, random, json, time
-// sys.path.insert(0, '..')  # For importing app config, required for using db
-// from dominos.Config import Config
-// from dominos.classes.Board import Board
-// from dominos.classes.Pack import Pack
-// from dominos.classes.Player import Player
-
 import { Board } from "./Board";
-// var Board = require("./Board");
-// var Config = require("./Config");
-// var Pack = require("./Pack");
-// var Player = require("./Player");
 import { Config } from "./Config";
 import { Domino } from "./Domino";
 import { Pack } from "./Pack";

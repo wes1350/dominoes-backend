@@ -13,7 +13,7 @@ export enum MessageType {
     ROUND_OVER = "ROUND_OVER",
     PACK_EMPTY = "PACK_EMPTY",
     CLEAR_BOARD = "CLEAR_BOARD",
-    SCORES = "SCORES",
+    SCORE = "SCORE",
     ERROR = "ERROR",
     TURN = "TURN",
     PULL = "PULL",

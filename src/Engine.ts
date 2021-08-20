@@ -128,9 +128,12 @@ export class Engine {
             // Reverse current player switch
             this._current_player =
                 (this._current_player + this._n_players - 1) % this._n_players;
-            this._players[this._current_player].AddPoints(
-                this.GetValueOnDomino(this._current_player)
-            );
+            const scoreOnDomino = this.GetValueOnDomino(this._current_player);
+            this._players[this._current_player].AddPoints(scoreOnDomino);
+            this.shout(MessageType.SCORE, {
+                seat: this._current_player,
+                score: scoreOnDomino
+            });
             console.log(`Player ${this._current_player} dominoed!`);
             this.ShowScores();
             this.shout(MessageType.ROUND_OVER, "");
@@ -140,6 +143,10 @@ export class Engine {
             let [blocked_scorer, points] = this.GetBlockedResult();
             if (blocked_scorer !== null) {
                 console.log(`Player ${blocked_scorer} scores ${points}`);
+                this.shout(MessageType.SCORE, {
+                    seat: blocked_scorer,
+                    score: points
+                });
                 this._players[blocked_scorer].AddPoints(points);
             }
             this.ShowScores();
@@ -169,7 +176,11 @@ export class Engine {
                         direction: placementRep.direction,
                         x: addedCoordinate.x,
                         y: addedCoordinate.y
-                    },
+                    }
+                });
+
+                this.shout(MessageType.SCORE, {
+                    seat: this._current_player,
                     score: this._board.Score
                 });
             }
@@ -564,7 +575,10 @@ export class Engine {
     }
 
     public ShowScores() {
-        this.shout(MessageType.SCORES, JSON.stringify(this.GetScores()));
+        if (this._local) {
+            console.log(JSON.stringify(this.GetScores()));
+        }
+        // this.shout(MessageType.SCORES, JSON.stringify(this.GetScores()));
     }
 
     public GetResponse(player: number, print_wait: boolean = false) {

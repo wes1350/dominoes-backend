@@ -6,6 +6,7 @@ import { Player } from "./Player";
 import * as _ from "lodash";
 import * as readline from "readline";
 import { QueryType, MessageType, Direction } from "./Enums";
+import { GameLogMessage } from "./MessageTypes";
 
 export class Engine {
     private _config: Config;
@@ -79,7 +80,6 @@ export class Engine {
 
     public async RunGame() {
         // Start && run a game until completion, handling game logic as necessary.
-        this.ShowScores();
         if (this._local) {
             this.InitializeRound(true);
         }
@@ -94,17 +94,14 @@ export class Engine {
         const winner = scores.findIndex(
             (score: number) => score === Math.max(...scores)
         );
-        this.shout(
-            MessageType.GAME_OVER,
-            `Game is over!\n\nPlayer ${winner} wins!`
-        );
+        this.shout(MessageType.GAME_OVER, winner);
         return winner;
     }
 
     public InitializeRound(fresh_round = false) {
         this._board = new Board();
         this.DrawHands(fresh_round);
-        this.shout(MessageType.CLEAR_BOARD, "");
+        this.shout(MessageType.CLEAR_BOARD);
     }
 
     public async PlayRound(fresh_round = false) {
@@ -121,35 +118,36 @@ export class Engine {
         while (this.PlayersHaveDominos() && !blocked && !this.GameIsOver()) {
             blocked = await this.PlayTurn(play_fresh);
             this.NextTurn();
-            this.ShowScores();
             play_fresh = false;
         }
         if (!this.PlayersHaveDominos()) {
             // Reverse current player switch
             this._current_player =
-                (this._current_player + this._n_players - 1) % this._n_players;
+                (this.CurrentPlayer + this._n_players - 1) % this._n_players;
             const scoreOnDomino = this.GetValueOnDomino(this._current_player);
-            this._players[this._current_player].AddPoints(scoreOnDomino);
+            this._players[this.CurrentPlayer].AddPoints(scoreOnDomino);
             this.shout(MessageType.SCORE, {
-                seat: this._current_player,
+                seat: this.CurrentPlayer,
                 score: scoreOnDomino
             });
-            console.log(`Player ${this._current_player} dominoed!`);
-            this.ShowScores();
-            this.shout(MessageType.ROUND_OVER, "");
+            this.shoutLog(
+                `Player ${this.CurrentPlayer} dominoed and scored ${scoreOnDomino} points.`
+            );
+            this.shout(MessageType.ROUND_OVER);
             return false;
         } else if (blocked) {
-            console.log("Game blocked!");
+            this.shoutLog("Board is blocked.");
             let [blocked_scorer, points] = this.GetBlockedResult();
             if (blocked_scorer !== null) {
-                console.log(`Player ${blocked_scorer} scores ${points}`);
+                this.shoutLog(`Player ${blocked_scorer} scores ${points}.`);
                 this.shout(MessageType.SCORE, {
                     seat: blocked_scorer,
                     score: points
                 });
                 this._players[blocked_scorer].AddPoints(points);
+            } else {
+                this.shoutLog(`Nobody scores any points from the block.`);
             }
-            this.ShowScores();
             return true;
         } else {
             // Game is over
@@ -158,15 +156,13 @@ export class Engine {
     }
 
     public async PlayTurn(play_fresh = false) {
-        console.log("BEFORE MOVE");
         const move = await this.queryMove(this._current_player, play_fresh);
-        console.log("AFTER MOVE");
         const domino = move.domino;
         const direction = move.direction;
-        console.log("Direction:", direction);
         if (domino !== null) {
             const addedCoordinate = this._board.AddDomino(domino, direction);
             const placementRep = this.GetPlacementRep(domino, direction);
+            this._players[this._current_player].RemoveDomino(domino);
             if (!this._local) {
                 this.shout(MessageType.TURN, {
                     seat: this._current_player,
@@ -179,21 +175,30 @@ export class Engine {
                     }
                 });
 
-                this.shout(MessageType.SCORE, {
-                    seat: this._current_player,
-                    score: this._board.Score
-                });
-            }
-            this._players[this._current_player].RemoveDomino(domino);
-            if (!this._local) {
                 this.whisper(
                     MessageType.HAND,
                     this._players[this._current_player].HandRep,
                     this._current_player
                 );
+
                 this.shout(MessageType.DOMINO_PLAYED, {
                     seat: this._current_player
                 });
+
+                this.shoutLog(
+                    `Player ${this._current_player} plays ${domino.Rep}.`
+                );
+
+                if (this._board.Score) {
+                    this.shout(MessageType.SCORE, {
+                        seat: this._current_player,
+                        score: this._board.Score
+                    });
+
+                    this.shoutLog(
+                        `Player ${this._current_player} scores ${this._board.Score}.`
+                    );
+                }
             }
 
             this._players[this._current_player].AddPoints(this._board.Score);
@@ -201,6 +206,7 @@ export class Engine {
         } else {
             // Player passes
             this._n_passes += 1;
+            this.shoutLog(`Player ${this._current_player} passes.`);
         }
         if (this._n_passes == this._n_players) {
             return true;
@@ -214,10 +220,6 @@ export class Engine {
     public NextTurn() {
         // Update the player to move.
         this._current_player = (this._current_player + 1) % this._n_players;
-    }
-
-    public get CurrentPlayer(): number {
-        return this._current_player;
     }
 
     public DrawHands(fresh_round = false) {
@@ -283,8 +285,8 @@ export class Engine {
     }
 
     public DetermineFirstPlayer(): number {
-        // Determine who has the largest double, && thus who will play first.
-        // Assumes each player's hand === assigned && a double exists among them.
+        // Determine who has the largest double, and thus who will play first.
+        // Assumes each player's hand is assigned and a double exists among them.
         for (let i = 6; i >= 0; i--) {
             for (let p = 0; p < this._n_players; p++) {
                 for (const domino of this._players[p].Hand) {
@@ -323,10 +325,6 @@ export class Engine {
                 isMe: i === seatNumber
             };
         });
-    }
-
-    public get Players(): Player[] {
-        return this._players;
     }
 
     public async queryMove(
@@ -523,6 +521,7 @@ export class Engine {
     }
 
     public GetPlacementRep(domino: Domino, addedDirection: Direction) {
+        // After adding a domino to the board, return how it will look in its rendered form
         let dominoOrientationDirection: Direction;
         if (
             addedDirection === Direction.NONE ||
@@ -562,9 +561,6 @@ export class Engine {
                 ? this._board.WestEdge
                 : null;
 
-        console.log(addedDirection, dominoOrientationDirection);
-        console.log(dominoCoordinates);
-
         return {
             face1: domino.Head,
             face2: domino.Tail,
@@ -574,28 +570,12 @@ export class Engine {
         };
     }
 
-    public ShowScores() {
-        if (this._local) {
-            console.log(JSON.stringify(this.GetScores()));
-        }
-        // this.shout(MessageType.SCORES, JSON.stringify(this.GetScores()));
+    public get Players(): Player[] {
+        return this._players;
     }
 
-    public GetResponse(player: number, print_wait: boolean = false) {
-        // query server for a response.
-        return "";
-        // throw new Error("Should not reach this function yet");
-        // while (true) {
-        //     const response = this._query_f(player);
-        //     if (response === "No response") {
-        //         this.sleep(0.01);
-        //         continue;
-        //     } else if (response !== null) {
-        //         return response;
-        //     } else {
-        //         throw new Error("Assertion error");
-        //     }
-        // }
+    public get CurrentPlayer(): number {
+        return this._current_player;
     }
 
     public whisper(type: MessageType, payload: any, player: number) {
@@ -608,22 +588,36 @@ export class Engine {
         }
     }
 
-    public shout(type: MessageType, payload: any) {
-        if (this._local) {
-            console.log("shout:", payload);
-        } else {
-            // this._shout_f(message, tag);
+    public shout(type: MessageType, payload?: any) {
+        console.log("shout:", payload);
+        if (!this._local) {
             this._shout(type, payload);
         }
     }
 
-    // private async sleep(duration: number) {
-    //     await new Promise((resolve) => setTimeout(resolve, duration / 1000));
-    // }
+    public shoutLog(message: string) {
+        if (!this._local) {
+            this.shout(MessageType.GAME_LOG, {
+                public: true,
+                message: message
+            } as GameLogMessage);
+        }
+    }
+
+    public whisperLog(message: string, player: number) {
+        if (!this._local) {
+            this.whisper(
+                MessageType.GAME_LOG,
+                {
+                    public: false,
+                    message: message
+                } as GameLogMessage,
+                player
+            );
+        }
+    }
 
     public input(message: string): Promise<string> {
-        // const response = readlineSync.question(message);
-        // return response;
         return new Promise((resolve, reject) => {
             this.rl.question(message, (input: string) => resolve(input));
         });

@@ -14,3 +14,8 @@ export interface GameStartMessage {
 export interface NewRoundMessage {
     currentPlayer: number;
 }
+
+export interface GameLogMessage {
+    public: boolean;
+    message: string;
+}

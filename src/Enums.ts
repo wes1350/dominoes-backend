@@ -10,7 +10,6 @@ export enum MessageType {
     HAND = "HAND",
     GAME_START = "GAME_START",
     GAME_OVER = "GAME_OVER",
-    ROUND_OVER = "ROUND_OVER",
     PACK_EMPTY = "PACK_EMPTY",
     CLEAR_BOARD = "CLEAR_BOARD",
     SCORE = "SCORE",
@@ -19,7 +18,9 @@ export enum MessageType {
     PULL = "PULL",
     DOMINO_PLAYED = "DOMINO_PLAYED",
     NEW_ROUND = "NEW_ROUND",
-    GAME_LOG = "GAME_LOG"
+    GAME_LOG = "GAME_LOG",
+    PLAYER_DOMINOED = "PLAYER_DOMINOED",
+    GAME_BLOCKED = "GAME_BLOCKED"
 }
 
 export enum Direction {

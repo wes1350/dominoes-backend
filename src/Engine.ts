@@ -79,7 +79,7 @@ export class Engine {
     }
 
     public async RunGame() {
-        // Start && run a game until completion, handling game logic as necessary.
+        // Start and run a game until completion, handling game logic as necessary.
         if (this._local) {
             this.InitializeRound(true);
         }
@@ -95,6 +95,7 @@ export class Engine {
             (score: number) => score === Math.max(...scores)
         );
         this.shout(MessageType.GAME_OVER, winner);
+        this.shoutLog(`Game is over, player ${winner} wins!`);
         return winner;
     }
 
@@ -102,15 +103,17 @@ export class Engine {
         this._board = new Board();
         this.DrawHands(fresh_round);
         this.shout(MessageType.CLEAR_BOARD);
+        this.shoutLog("");
     }
 
     public async PlayRound(fresh_round = false) {
+        this.shoutLog("New round started.");
         if (fresh_round) {
             this._current_player = this.DetermineFirstPlayer();
         }
         if (!this._local) {
             this.shout(MessageType.NEW_ROUND, {
-                currentPlayer: this._current_player
+                currentPlayer: this.CurrentPlayer
             });
         }
         let blocked = false;
@@ -121,10 +124,9 @@ export class Engine {
             play_fresh = false;
         }
         if (!this.PlayersHaveDominos()) {
-            // Reverse current player switch
             this._current_player =
                 (this.CurrentPlayer + this._n_players - 1) % this._n_players;
-            const scoreOnDomino = this.GetValueOnDomino(this._current_player);
+            const scoreOnDomino = this.GetValueOnDomino(this.CurrentPlayer);
             this._players[this.CurrentPlayer].AddPoints(scoreOnDomino);
             this.shout(MessageType.SCORE, {
                 seat: this.CurrentPlayer,
@@ -133,13 +135,15 @@ export class Engine {
             this.shoutLog(
                 `Player ${this.CurrentPlayer} dominoed and scored ${scoreOnDomino} points.`
             );
-            this.shout(MessageType.ROUND_OVER);
+            this.shout(MessageType.PLAYER_DOMINOED);
             return false;
         } else if (blocked) {
             this.shoutLog("Board is blocked.");
             let [blocked_scorer, points] = this.GetBlockedResult();
             if (blocked_scorer !== null) {
-                this.shoutLog(`Player ${blocked_scorer} scores ${points}.`);
+                this.shoutLog(
+                    `Player ${blocked_scorer} scores ${points} from the block.`
+                );
                 this.shout(MessageType.SCORE, {
                     seat: blocked_scorer,
                     score: points
@@ -148,6 +152,7 @@ export class Engine {
             } else {
                 this.shoutLog(`Nobody scores any points from the block.`);
             }
+            this.shout(MessageType.GAME_BLOCKED);
             return true;
         } else {
             // Game is over
@@ -156,16 +161,16 @@ export class Engine {
     }
 
     public async PlayTurn(play_fresh = false) {
-        const move = await this.queryMove(this._current_player, play_fresh);
+        const move = await this.queryMove(this.CurrentPlayer, play_fresh);
         const domino = move.domino;
         const direction = move.direction;
         if (domino !== null) {
             const addedCoordinate = this._board.AddDomino(domino, direction);
             const placementRep = this.GetPlacementRep(domino, direction);
-            this._players[this._current_player].RemoveDomino(domino);
+            this._players[this.CurrentPlayer].RemoveDomino(domino);
             if (!this._local) {
                 this.shout(MessageType.TURN, {
-                    seat: this._current_player,
+                    seat: this.CurrentPlayer,
                     domino: {
                         face1: domino.Big,
                         face2: domino.Small,
@@ -177,36 +182,36 @@ export class Engine {
 
                 this.whisper(
                     MessageType.HAND,
-                    this._players[this._current_player].HandRep,
-                    this._current_player
+                    this._players[this.CurrentPlayer].HandRep,
+                    this.CurrentPlayer
                 );
 
                 this.shout(MessageType.DOMINO_PLAYED, {
-                    seat: this._current_player
+                    seat: this.CurrentPlayer
                 });
 
                 this.shoutLog(
-                    `Player ${this._current_player} plays ${domino.Rep}.`
+                    `Player ${this.CurrentPlayer} plays ${domino.Rep}.`
                 );
 
                 if (this._board.Score) {
                     this.shout(MessageType.SCORE, {
-                        seat: this._current_player,
+                        seat: this.CurrentPlayer,
                         score: this._board.Score
                     });
 
                     this.shoutLog(
-                        `Player ${this._current_player} scores ${this._board.Score}.`
+                        `Player ${this.CurrentPlayer} scores ${this._board.Score}.`
                     );
                 }
             }
 
-            this._players[this._current_player].AddPoints(this._board.Score);
+            this._players[this.CurrentPlayer].AddPoints(this._board.Score);
             this._n_passes = 0;
         } else {
             // Player passes
             this._n_passes += 1;
-            this.shoutLog(`Player ${this._current_player} passes.`);
+            this.shoutLog(`Player ${this.CurrentPlayer} passes.`);
         }
         if (this._n_passes == this._n_players) {
             return true;
@@ -219,7 +224,7 @@ export class Engine {
 
     public NextTurn() {
         // Update the player to move.
-        this._current_player = (this._current_player + 1) % this._n_players;
+        this._current_player = (this.CurrentPlayer + 1) % this._n_players;
     }
 
     public DrawHands(fresh_round = false) {
@@ -332,7 +337,6 @@ export class Engine {
         play_fresh = false
     ): Promise<{ domino: Domino; direction: Direction }> {
         while (true) {
-            console.log("In while");
             const possible_placements = this._board.GetValidPlacementsForHand(
                 this._players[player].Hand,
                 play_fresh
@@ -340,7 +344,6 @@ export class Engine {
             const pretty_placements = possible_placements.map((el) => {
                 return { index: el.index, rep: el.domino.Rep, dirs: el.dirs };
             });
-            // const pretty_placements = [(x[0], str(x[1]), x[2]) for x in possible_placements]
             console.log("Possible placements:");
             pretty_placements.forEach((el) => {
                 console.log(
@@ -352,18 +355,15 @@ export class Engine {
                     0,
                     pretty_placements.length
                 ).filter((i) => pretty_placements[i].dirs.length > 0);
-                // const playable_dominos = [i for i in range(len(pretty_placements)) if len(pretty_placements[i][2]) > 0]
                 this.whisper(
                     MessageType.PLAYABLE_DOMINOS,
                     playable_dominos.toString(),
                     player
                 );
-                console.log("sent playable dominos");
             }
             const move_possible = !!possible_placements.find(
                 (p) => p.dirs.length > 0
             );
-            // const move_possible = any([len(t[-1]) > 0 for t in possible_placements])
             if (move_possible) {
                 try {
                     const query_msg = `Player ${player}, what domino do you select?\n`;
@@ -373,13 +373,11 @@ export class Engine {
                         response = await this.input(query_msg);
                         domino_index = parseInt(response.trim());
                     } else {
-                        console.log("HERE");
                         response = await this.query(
                             QueryType.DOMINO,
                             query_msg,
                             player
                         );
-                        console.log("type:", typeof response);
                         domino_index = parseInt(response);
                     }
                     if (
@@ -411,13 +409,11 @@ export class Engine {
                                         await this.input(query_msg)
                                     ).trim() as Direction;
                                 } else {
-                                    // this.whisper(query_msg, player, "prompt");
                                     const directionResponse = await this.query(
                                         QueryType.DIRECTION,
                                         query_msg,
                                         player
                                     );
-                                    // response = this.GetResponse(player);
                                     direction = directionResponse
                                         .trim()
                                         .toUpperCase() as Direction;
@@ -456,8 +452,11 @@ export class Engine {
                         );
                     } else {
                         this.shout(MessageType.PULL, {
-                            seat: this._current_player
+                            seat: this.CurrentPlayer
                         });
+                        this.shoutLog(
+                            `Player ${this.CurrentPlayer} pulls a domino.`
+                        );
                     }
                     this._players[player].AddDomino(pulled[0]);
                     if (this._local) {
@@ -474,10 +473,6 @@ export class Engine {
                         );
                     }
                 } else {
-                    this.shout(
-                        MessageType.PACK_EMPTY,
-                        `Player ${player} cannot play and pack is empty, skipping turn`
-                    );
                     return { domino: null, direction: null };
                 }
             }

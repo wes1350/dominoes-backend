@@ -26,7 +26,7 @@ export class Engine {
         type: QueryType,
         message: string,
         player: number
-    ) => Promise<string>;
+    ) => Promise<any>;
     private rl: any;
 
     public constructor(
@@ -41,7 +41,7 @@ export class Engine {
             type: QueryType,
             message: string,
             player: number
-        ) => Promise<string> = null
+        ) => Promise<any> = null
     ) {
         this._config = new Config();
         this._n_players = n_players ?? this._config.NPlayers;
@@ -366,74 +366,55 @@ export class Engine {
             );
             if (move_possible) {
                 try {
-                    const query_msg = `Player ${player}, what domino do you select?\n`;
-                    let domino_index;
-                    let response: string;
-                    if (this._local) {
-                        response = await this.input(query_msg);
-                        domino_index = parseInt(response.trim());
-                    } else {
-                        response = await this.query(
-                            QueryType.DOMINO,
-                            query_msg,
+                    // Local mode no longer supported, need to re-implement it
+                    const response: { domino: number; direction: string } =
+                        await this.query(
+                            QueryType.MOVE,
+                            `Player ${player}, make a move`,
                             player
                         );
-                        domino_index = parseInt(response);
-                    }
+                    const dominoIndex = response.domino;
+                    const domino = possible_placements[dominoIndex].domino;
+
                     if (
                         !(
-                            0 <= domino_index &&
-                            domino_index <= possible_placements.length
+                            0 <= dominoIndex &&
+                            dominoIndex <= possible_placements.length
                         ) ||
-                        possible_placements[domino_index].dirs.length === 0
+                        possible_placements[dominoIndex].dirs.length === 0
                     ) {
                         this.whisper(
                             MessageType.ERROR,
-                            "Invalid domino choice: " + domino_index.toString(),
+                            "Invalid domino choice: " + dominoIndex.toString(),
                             player
                         );
+                        continue;
+                    }
+
+                    let direction = response.direction as Direction;
+
+                    if (possible_placements[dominoIndex].dirs.length == 1) {
+                        direction = possible_placements[dominoIndex].dirs[0];
                     } else {
-                        const domino = possible_placements[domino_index].domino;
                         if (
-                            possible_placements[domino_index].dirs.length == 1
+                            !possible_placements[dominoIndex].dirs.includes(
+                                direction
+                            )
                         ) {
-                            const direction =
-                                possible_placements[domino_index].dirs[0];
-                            return { domino, direction };
-                        } else {
-                            while (true) {
-                                const query_msg = `Player ${player}, what direction do you select?\n`;
-                                let direction: Direction;
-                                if (this._local) {
-                                    direction = (
-                                        await this.input(query_msg)
-                                    ).trim() as Direction;
-                                } else {
-                                    const directionResponse = await this.query(
-                                        QueryType.DIRECTION,
-                                        query_msg,
-                                        player
-                                    );
-                                    direction = directionResponse
-                                        .trim()
-                                        .toUpperCase() as Direction;
-                                }
-                                if (
-                                    !possible_placements[
-                                        domino_index
-                                    ].dirs.includes(direction as Direction)
-                                ) {
-                                    this.whisper(
-                                        MessageType.ERROR,
-                                        "Invalid direction: " + direction,
-                                        player
-                                    );
-                                } else {
-                                    return { domino, direction };
-                                }
-                            }
+                            this.whisper(
+                                MessageType.ERROR,
+                                "Invalid domino choice: " +
+                                    dominoIndex.toString(),
+                                player
+                            );
+                            continue;
                         }
                     }
+
+                    return {
+                        domino: domino,
+                        direction: direction
+                    };
                 } catch (err) {
                     this.whisper(
                         MessageType.ERROR,
@@ -622,7 +603,7 @@ export class Engine {
         type: QueryType,
         message: string,
         player: number
-    ): Promise<string> => {
+    ): Promise<any> => {
         return this._query(type, message, player);
     };
 }

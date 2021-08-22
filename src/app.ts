@@ -104,14 +104,11 @@ const queryClient = async (
     type: QueryType,
     message: string,
     player: number
-): Promise<string> => {
-    console.log("IN QUERY");
-    console.log("type:", type, "message:", message, "player:", player);
+): Promise<any> => {
     const socketId = playersToSockets.get(player).id;
     socketIdsToResponses.get(socketId).delete(type);
     playersToSockets.get(player).emit(type as string, message);
 
-    console.log("waiting");
     while (!socketIdsToResponses.get(socketId).get(type)) {
         await sleep(100);
     }

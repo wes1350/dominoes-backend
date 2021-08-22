@@ -1,7 +1,5 @@
 export enum QueryType {
-    DOMINO = "QUERY_DOMINO",
-    DIRECTION = "QUERY_DIRECTION",
-    PULL = "QUERY_PULL"
+    MOVE = "QUERY_MOVE"
 }
 
 export enum MessageType {

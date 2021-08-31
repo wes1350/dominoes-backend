@@ -61,10 +61,10 @@ export class Player {
         );
     }
 
-    public get HandRep(): { face1: number; face2: number }[] {
+    public get HandRep(): { Face1: number; Face2: number }[] {
         return this.Hand.map((domino) => ({
-            face1: domino.Big,
-            face2: domino.Small
+            Face1: domino.Big,
+            Face2: domino.Small
         }));
     }
 }

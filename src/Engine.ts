@@ -172,11 +172,13 @@ export class Engine {
                 this.shout(MessageType.TURN, {
                     seat: this.CurrentPlayer,
                     domino: {
-                        face1: domino.Big,
-                        face2: domino.Small,
-                        direction: placementRep.direction,
-                        x: addedCoordinate.x,
-                        y: addedCoordinate.y
+                        Face1: domino.Big,
+                        Face2: domino.Small
+                    },
+                    direction: placementRep.direction,
+                    coordinate: {
+                        X: addedCoordinate.x,
+                        Y: addedCoordinate.y
                     }
                 });
 

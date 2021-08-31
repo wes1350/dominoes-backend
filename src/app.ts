@@ -54,7 +54,6 @@ io.on("connection", (socket: Socket) => {
         Array.from(playersToSockets.keys()).forEach((player: number) => {
             const gameDetails = {
                 players: engine.PlayerRepresentationsForSeat(player),
-                currentPlayer: engine.CurrentPlayer,
                 config: {
                     n_dominoes: 7
                 }

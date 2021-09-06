@@ -139,6 +139,7 @@ export class Engine {
             return false;
         } else if (blocked) {
             this.shoutLog("Board is blocked.");
+            this.shout(MessageType.GAME_BLOCKED);
             let [blocked_scorer, points] = this.GetBlockedResult();
             if (blocked_scorer !== null) {
                 this.shoutLog(
@@ -152,7 +153,6 @@ export class Engine {
             } else {
                 this.shoutLog(`Nobody scores any points from the block.`);
             }
-            this.shout(MessageType.GAME_BLOCKED);
             return true;
         } else {
             // Game is over
@@ -213,6 +213,16 @@ export class Engine {
         } else {
             // Player passes
             this._n_passes += 1;
+
+            if (!this._local) {
+                this.shout(MessageType.TURN, {
+                    seat: this.CurrentPlayer,
+                    domino: null,
+                    direction: null,
+                    coordinate: null
+                });
+            }
+
             this.shoutLog(`Player ${this.CurrentPlayer} passes.`);
         }
         if (this._n_passes == this._n_players) {

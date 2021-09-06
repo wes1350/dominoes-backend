@@ -7,6 +7,7 @@ import * as _ from "lodash";
 import * as readline from "readline";
 import { QueryType, MessageType, Direction } from "./Enums";
 import { GameLogMessage } from "./MessageTypes";
+import { GameConfigDescription } from "./interfaces/GameConfigDescription";
 
 export class Engine {
     private _config: Config;
@@ -31,6 +32,7 @@ export class Engine {
 
     public constructor(
         n_players: number,
+        configDescription: GameConfigDescription,
         whisper_f: (
             type: MessageType,
             payload: any,
@@ -43,7 +45,7 @@ export class Engine {
             player: number
         ) => Promise<any> = null
     ) {
-        this._config = new Config();
+        this._config = new Config(configDescription);
         this._n_players = n_players ?? this._config.NPlayers;
         this._hand_size = this._config.HandSize;
         this._win_threshold = this._config.WinThreshold;

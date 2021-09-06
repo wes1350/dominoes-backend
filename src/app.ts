@@ -3,6 +3,7 @@ import * as http from "http";
 import { Socket } from "socket.io";
 import { Engine } from "./Engine";
 import { MessageType, QueryType } from "./Enums";
+import { GameConfigDescription } from "./interfaces/GameConfigDescription";
 import { sleep } from "./utils";
 const app = express();
 const server = http.createServer(app);
@@ -30,7 +31,7 @@ io.on("connection", (socket: Socket) => {
         console.log("user disconnected");
     });
 
-    socket.on(MessageType.GAME_START, (socket: Socket) => {
+    socket.on(MessageType.GAME_START, (config: GameConfigDescription) => {
         console.log("starting game");
         // Assign player numbers
         Array.from(socketIdsToSockets.values()).forEach(
@@ -42,8 +43,11 @@ io.on("connection", (socket: Socket) => {
 
         setUpSocketsForGame();
 
+        console.log(config);
+
         const engine = new Engine(
             Array.from(playersToSockets.keys()).length,
+            config,
             emitToClient,
             broadcast,
             queryClient

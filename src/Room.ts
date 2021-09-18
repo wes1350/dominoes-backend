@@ -98,13 +98,26 @@ export class Room {
         player: number
     ): Promise<any> => {
         const socketId = this.playersToSockets.get(player).id;
+        if (!this.socketIdsToResponses.has(socketId)) {
+            // User disconnected, so their socket ID response key was removed
+            return null;
+        }
         this.socketIdsToResponses.get(socketId).delete(type);
         this.playersToSockets.get(player).emit(type as string, message);
 
-        while (!this.socketIdsToResponses.get(socketId).get(type)) {
+        while (!this.socketIdsToResponses.get(socketId)?.get(type)) {
             await sleep(100);
         }
 
+        if (!this.socketIdsToResponses.has(socketId)) {
+            // User disconnected, so their socket ID response key was removed
+            return null;
+        }
+
+        console.log(
+            "response:",
+            this.socketIdsToResponses.get(socketId).get(type)
+        );
         return this.socketIdsToResponses.get(socketId).get(type);
     };
 }

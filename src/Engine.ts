@@ -125,6 +125,11 @@ export class Engine {
             this.NextTurn();
             play_fresh = false;
         }
+        if (blocked === null) {
+            // Temporary case for disconnects
+            return false;
+        }
+
         if (!this.PlayersHaveDominoes()) {
             this._current_player =
                 (this.CurrentPlayer + this._n_players - 1) % this._n_players;
@@ -164,6 +169,10 @@ export class Engine {
 
     public async PlayTurn(play_fresh = false) {
         const move = await this.queryMove(this.CurrentPlayer, play_fresh);
+        if (move === null) {
+            // Temporary case for disconnects
+            return null;
+        }
         const domino = move.domino;
         const direction = move.direction;
         if (domino !== null) {
@@ -387,6 +396,10 @@ export class Engine {
                             `Player ${player}, make a move`,
                             player
                         );
+                    if (response === null) {
+                        // Temporary case for disconnects
+                        return null;
+                    }
                     const dominoIndex = response.domino;
                     const domino = possible_placements[dominoIndex].domino;
 
@@ -430,6 +443,7 @@ export class Engine {
                         direction: direction
                     };
                 } catch (err) {
+                    console.error(err);
                     this.whisper(
                         MessageType.ERROR,
                         "Invalid input, try again",
@@ -569,6 +583,7 @@ export class Engine {
     }
 
     public whisper(type: MessageType, payload: any, player: number) {
+        console.log("whisper to player:", player, ":", payload);
         if (this._local) {
             console.log("whisper to player:", player, ":", payload);
             // this._whisper_f(message, player, tag);

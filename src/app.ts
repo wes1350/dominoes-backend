@@ -33,7 +33,7 @@ io.on("connection", (socket: Socket) => {
             const room = roomIdsToRooms.get(socketIdsToRoomIds.get(socket.id));
             room.RemoveSocketWithId(socket.id);
             // Replace null here
-            room.BroadcastToRoom(MessageType.LEAVE_ROOM, null);
+            room.Broadcast(MessageType.LEAVE_ROOM, null);
         }
         console.log("user disconnected");
     });
@@ -44,11 +44,11 @@ io.on("connection", (socket: Socket) => {
             console.log(`user joining room ${roomId}`);
             socketIdsToRoomIds.set(socket.id, roomId);
             if (!roomIdsToRooms.get(roomId)) {
-                roomIdsToRooms.set(roomId, new Room(io));
+                roomIdsToRooms.set(roomId, new Room(roomId));
             }
             const room = roomIdsToRooms.get(roomId);
             room.AddSocket(socket);
-            room.BroadcastToRoom(MessageType.JOIN_ROOM, userInfo);
+            room.Broadcast(MessageType.JOIN_ROOM, userInfo);
         }
     );
 
@@ -58,7 +58,7 @@ io.on("connection", (socket: Socket) => {
             console.log(`user leaving room ${roomId}`);
             socketIdsToRoomIds.delete(socket.id);
             const room = roomIdsToRooms.get(roomId);
-            room.BroadcastToRoom(MessageType.LEAVE_ROOM, userInfo);
+            room.Broadcast(MessageType.LEAVE_ROOM, userInfo);
         }
     );
 

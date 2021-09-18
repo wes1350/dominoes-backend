@@ -5,13 +5,13 @@ import { GameConfigDescription } from "./interfaces/GameConfigDescription";
 import { sleep } from "./utils";
 
 export class Room {
-    private io: any;
+    private id: string;
     private sockets: Socket[];
     private socketIdsToResponses: Map<string, Map<string, string>>;
     private playersToSockets: Map<number, Socket>;
 
-    constructor(io: any) {
-        this.io = io;
+    constructor(id: string) {
+        this.id = id;
         this.sockets = [];
         this.socketIdsToResponses = new Map<string, Map<string, string>>();
         this.playersToSockets = new Map<number, Socket>();
@@ -26,17 +26,12 @@ export class Room {
             this.sockets.push(socket);
             this.socketIdsToResponses.set(socket.id, new Map<string, string>());
         }
+        console.log(`adding socket with ID ${socket.id} to room ${this.id}`);
     }
 
     public RemoveSocketWithId(id: string): void {
         this.sockets = this.sockets.filter((socket) => socket.id !== id);
         this.socketIdsToResponses.delete(id);
-    }
-
-    public BroadcastToRoom(messageType: MessageType, payload: any) {
-        this.sockets.forEach((socket) => {
-            socket.emit(messageType, payload);
-        });
     }
 
     public StartGame(config: GameConfigDescription): void {
@@ -56,9 +51,9 @@ export class Room {
         const engine = new Engine(
             Array.from(this.playersToSockets.keys()).length,
             config,
-            this.emitToClient,
-            this.broadcast,
-            this.queryClient
+            this.emitToClient.bind(this),
+            this.Broadcast.bind(this),
+            this.queryClient.bind(this)
         );
 
         engine.InitializeRound(true);
@@ -80,16 +75,18 @@ export class Room {
         });
     }
 
+    public Broadcast(messageType: MessageType, payload: any) {
+        this.sockets.forEach((socket) => {
+            socket.emit(messageType, payload);
+        });
+    }
+
     private emitToClient = (
         type: MessageType,
         message: string,
         player: number
     ) => {
         this.playersToSockets.get(player).emit(type as string, message);
-    };
-
-    private broadcast = (type: MessageType, payload: string | object) => {
-        this.io.emit(type as string, payload);
     };
 
     private queryClient = async (

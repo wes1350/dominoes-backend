@@ -18,7 +18,9 @@ export enum MessageType {
     NEW_ROUND = "NEW_ROUND",
     GAME_LOG = "GAME_LOG",
     PLAYER_DOMINOED = "PLAYER_DOMINOED",
-    GAME_BLOCKED = "GAME_BLOCKED"
+    GAME_BLOCKED = "GAME_BLOCKED",
+    JOIN_ROOM = "JOIN_ROOM",
+    LEAVE_ROOM = "LEAVE_ROOM"
 }
 
 export enum Direction {

@@ -80,7 +80,7 @@ export class Engine {
             : null;
     }
 
-    public async RunGame() {
+    public async RunGame(): Promise<number> {
         // Start and run a game until completion, handling game logic as necessary.
         if (this._local) {
             this.InitializeRound(true);

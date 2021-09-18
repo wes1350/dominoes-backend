@@ -4,7 +4,7 @@ export enum QueryType {
 
 export enum MessageType {
     ADD_DOMINO = "ADD_DOMINO",
-    PLAYABLE_DOMINOS = "PLAYABLE_DOMINOS",
+    PLAYABLE_DOMINOES = "PLAYABLE_DOMINOES",
     HAND = "HAND",
     GAME_START = "GAME_START",
     GAME_OVER = "GAME_OVER",

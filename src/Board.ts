@@ -53,7 +53,7 @@ export class Board {
             // When placing the first domino
             if (this._dominoExistsAt(0, 0)) {
                 throw new Error(
-                    "Must specify a valid direction if the board contains dominos"
+                    "Must specify a valid direction if the board contains dominoes"
                 );
             }
             x = 0;
@@ -238,7 +238,7 @@ export class Board {
         if (this._east === 0 && this._west === 0) {
             total += this._getDominoAt(0, 0).Total;
         } else {
-            // We have at least two dominos, so each domino on the end will only count once
+            // We have at least two dominoes, so each domino on the end will only count once
 
             // Handle east-west
             let east = this._getDominoAt(this._east, 0);

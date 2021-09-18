@@ -120,12 +120,12 @@ export class Engine {
         }
         let blocked = false;
         let play_fresh = fresh_round;
-        while (this.PlayersHaveDominos() && !blocked && !this.GameIsOver()) {
+        while (this.PlayersHaveDominoes() && !blocked && !this.GameIsOver()) {
             blocked = await this.PlayTurn(play_fresh);
             this.NextTurn();
             play_fresh = false;
         }
-        if (!this.PlayersHaveDominos()) {
+        if (!this.PlayersHaveDominoes()) {
             this._current_player =
                 (this.CurrentPlayer + this._n_players - 1) % this._n_players;
             const scoreOnDomino = this.GetValueOnDomino(this.CurrentPlayer);
@@ -318,7 +318,7 @@ export class Engine {
         throw new Error("Could not find double in any player's hands");
     }
 
-    public PlayersHaveDominos() {
+    public PlayersHaveDominoes() {
         return Math.min(...this._players.map((p) => p.Hand.length)) > 0;
     }
 
@@ -365,13 +365,13 @@ export class Engine {
                 );
             });
             if (!this._local) {
-                const playable_dominos = _.range(
+                const playable_Dominoes = _.range(
                     0,
                     pretty_placements.length
                 ).filter((i) => pretty_placements[i].dirs.length > 0);
                 this.whisper(
-                    MessageType.PLAYABLE_DOMINOS,
-                    playable_dominos.toString(),
+                    MessageType.PLAYABLE_DOMINOES,
+                    playable_Dominoes.toString(),
                     player
                 );
             }

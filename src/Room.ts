@@ -117,4 +117,8 @@ export class Room {
         );
         return this.socketIdsToResponses.get(socketId).get(type);
     };
+
+    public get NPlayers(): number {
+        return this.sockets.length;
+    }
 }

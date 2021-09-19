@@ -1,10 +1,19 @@
 import express from "express";
 import * as http from "http";
+import cors from "cors";
 import { Socket } from "socket.io";
 import { MessageType } from "./Enums";
 import { GameConfigDescription } from "./interfaces/GameConfigDescription";
 import { Room } from "./Room";
+
+const corsOptions = {
+    origin: "http://localhost:3000"
+    // optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
+};
+
 const app = express();
+app.use(cors(corsOptions));
+
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server, {
@@ -71,6 +80,23 @@ io.on("connection", (socket: Socket) => {
         }
     );
 });
+
+app.get(
+    "/rooms",
+    (
+        req: express.Request,
+        res: express.Response,
+        next: express.NextFunction
+    ) => {
+        console.log("got a request to /rooms");
+        const roomIds = Array.from(roomIdsToRooms.keys());
+        const roomDetails = roomIds.map((roomId) => ({
+            id: roomId,
+            nPlayers: roomIdsToRooms.get(roomId).NPlayers
+        }));
+        res.json(roomDetails);
+    }
+);
 
 const port = 3001;
 server.listen(port, () => {

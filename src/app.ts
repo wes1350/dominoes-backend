@@ -5,6 +5,7 @@ import { Socket } from "socket.io";
 import { MessageType } from "./Enums";
 import { GameConfigDescription } from "./interfaces/GameConfigDescription";
 import { Room } from "./Room";
+import { getRandomInt } from "./utils";
 
 const corsOptions = {
     origin: "http://localhost:3000"
@@ -68,6 +69,7 @@ io.on("connection", (socket: Socket) => {
             socketIdsToRoomIds.delete(socket.id);
             const room = roomIdsToRooms.get(roomId);
             room.Broadcast(MessageType.LEAVE_ROOM, userInfo);
+            room.RemoveSocketWithId(socket.id);
         }
     );
 
@@ -95,6 +97,28 @@ app.get(
             nPlayers: roomIdsToRooms.get(roomId).NPlayers
         }));
         res.json(roomDetails);
+    }
+);
+
+app.get(
+    "/createRoom",
+    (
+        req: express.Request,
+        res: express.Response,
+        next: express.NextFunction
+    ) => {
+        console.log("got a request to /createRoom");
+        const roomIds = Array.from(roomIdsToRooms.keys());
+        while (true) {
+            const newId = getRandomInt(0, 100000000).toString();
+            if (!roomIds.includes(newId)) {
+                const roomDetails = {
+                    id: newId
+                };
+                res.json(roomDetails);
+                break;
+            }
+        }
     }
 );
 

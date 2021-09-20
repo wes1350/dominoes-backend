@@ -6,14 +6,44 @@ import { MessageType } from "./Enums";
 import { GameConfigDescription } from "./interfaces/GameConfigDescription";
 import { Room } from "./Room";
 import { getRandomInt } from "./utils";
+import redis from "redis";
+import session from "express-session";
+import connectRedis from "connect-redis";
+
+declare module "express-session" {
+    interface SessionData {
+        askCount: number;
+    }
+}
+
+const redisClient = redis.createClient();
+const redisStore = connectRedis(session);
 
 const corsOptions = {
-    origin: "http://localhost:3000"
+    origin: "http://localhost:3000",
+    credentials: true
     // optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
 };
 
 const app = express();
 app.use(cors(corsOptions));
+
+app.use(
+    session({
+        cookie: {
+            // domain: ".app.localhost",
+            path: "/",
+            httpOnly: true,
+            secure: false,
+            maxAge: null
+            // sameSite: "lax"
+        },
+        store: new redisStore({ client: redisClient }),
+        saveUninitialized: false,
+        secret: "dev-test-secret",
+        resave: false
+    })
+);
 
 const server = http.createServer(app);
 const { Server } = require("socket.io");
@@ -68,8 +98,10 @@ io.on("connection", (socket: Socket) => {
             console.log(`user leaving room ${roomId}`);
             socketIdsToRoomIds.delete(socket.id);
             const room = roomIdsToRooms.get(roomId);
-            room.Broadcast(MessageType.LEAVE_ROOM, userInfo);
-            room.RemoveSocketWithId(socket.id);
+            if (room) {
+                room.Broadcast(MessageType.LEAVE_ROOM, userInfo);
+                room.RemoveSocketWithId(socket.id);
+            }
         }
     );
 
@@ -90,13 +122,20 @@ app.get(
         res: express.Response,
         next: express.NextFunction
     ) => {
+        // console.log(req);
+        console.log("sessionId:", req.sessionID);
         console.log("got a request to /rooms");
+        if (!req.session.askCount) {
+            req.session.askCount = 1;
+        } else {
+            req.session.askCount += 1;
+        }
         const roomIds = Array.from(roomIdsToRooms.keys());
         const roomDetails = roomIds.map((roomId) => ({
             id: roomId,
             nPlayers: roomIdsToRooms.get(roomId).NPlayers
         }));
-        res.json(roomDetails);
+        res.json({ rooms: roomDetails, askCount: req.session.askCount });
     }
 );
 

@@ -5,67 +5,86 @@ import { GameConfigDescription } from "./interfaces/GameConfigDescription";
 import { sleep } from "./utils";
 
 export class Room {
+    private io: any;
     private id: string;
-    private sockets: Socket[];
-    private socketIdsToResponses: Map<string, Map<string, string>>;
-    private playersToSockets: Map<number, Socket>;
+    private socketIdsToResponses: Map<string, string>;
+    private playersToSocketIds: Map<number, string>;
 
-    constructor(id: string) {
+    constructor(id: string, io: any) {
+        this.io = io;
         this.id = id;
-        this.sockets = [];
-        this.socketIdsToResponses = new Map<string, Map<string, string>>();
-        this.playersToSockets = new Map<number, Socket>();
+        this.socketIdsToResponses = new Map<string, string>();
+        this.playersToSocketIds = new Map<number, string>();
+    }
+
+    private get players(): number[] {
+        return Array.from(this.playersToSocketIds.keys());
     }
 
     private get socketIds(): string[] {
-        return this.sockets.map((socket) => socket.id);
+        return Array.from(this.socketIdsToResponses.keys());
     }
 
-    public AddSocket(socket: Socket): void {
-        if (!this.socketIds.includes(socket.id)) {
-            this.sockets.push(socket);
-            this.socketIdsToResponses.set(socket.id, new Map<string, string>());
+    private getSocketFromId(socketId: string): Socket {
+        return this.io.sockets.sockets.get(socketId) as Socket;
+    }
+
+    public AddPlayerBySocketId(socketId: string): void {
+        console.log(`adding socket with ID ${socketId} to room ${this.id}`);
+        if (!this.socketIdsToResponses.has(socketId)) {
+            this.socketIdsToResponses.set(socketId, null);
+        } else {
+            console.warn(
+                `Tried to add socket id ${socketId} to room ${this.id} when it already existed in the room`
+            );
         }
-        console.log(`adding socket with ID ${socket.id} to room ${this.id}`);
     }
 
-    public RemoveSocketWithId(id: string): void {
-        this.sockets = this.sockets.filter((socket) => socket.id !== id);
-        this.socketIdsToResponses.delete(id);
+    public RemovePlayerBySocketId(socketId: string): void {
+        // this.sockets = this.sockets.filter((socket) => socket.id !== id);
+        this.socketIdsToResponses.delete(socketId);
     }
 
     public StartGame(config: GameConfigDescription): void {
         console.log("config:", config);
-        this.sockets.forEach((socket: Socket, i: number) => {
-            this.playersToSockets.set(i, socket);
-            this.socketIdsToResponses.set(socket.id, new Map<string, string>());
+        this.socketIds.forEach((socketId: string, i: number) => {
+            // Later, randomize order
+            this.playersToSocketIds.set(i, socketId);
+            this.socketIdsToResponses.set(socketId, null);
 
-            socket.onAny((eventName: string, response: string) => {
-                console.log("received:", eventName, " -- response:", response);
-                this.socketIdsToResponses
-                    .get(socket.id)
-                    .set(eventName, response);
-            });
+            this.getSocketFromId(socketId).onAny(
+                (eventName: string, response: string) => {
+                    console.log(
+                        "received:",
+                        eventName,
+                        " -- response:",
+                        response
+                    );
+                    this.socketIdsToResponses.set(socketId, response);
+                }
+            );
         });
 
         const engine = new Engine(
-            Array.from(this.playersToSockets.keys()).length,
+            this.socketIds.length,
             config,
             this.emitToClient.bind(this),
-            this.Broadcast.bind(this),
+            this.broadcast.bind(this),
             this.queryClient.bind(this)
         );
 
         engine.InitializeRound(true);
 
-        Array.from(this.playersToSockets.keys()).forEach((player: number) => {
+        this.players.forEach((player: number) => {
             const gameDetails = {
                 players: engine.PlayerRepresentationsForSeat(player),
                 config: {
                     n_dominoes: config.HandSize
                 }
             };
-            const socket = this.playersToSockets.get(player);
+            const socket = this.getSocketFromId(
+                this.playersToSocketIds.get(player)
+            );
             socket.emit(MessageType.GAME_START, gameDetails);
             socket.emit(MessageType.HAND, engine.Players[player].HandRep);
         });
@@ -75,10 +94,11 @@ export class Room {
         });
     }
 
-    public Broadcast(messageType: MessageType, payload: any) {
-        this.sockets.forEach((socket) => {
-            socket.emit(messageType, payload);
-        });
+    private broadcast(messageType: MessageType, payload: any) {
+        console.log(
+            `broadcasting ${payload} of type ${messageType} to room ${this.id}`
+        );
+        this.io.to(this.id).emit(messageType, payload);
     }
 
     private emitToClient = (
@@ -86,7 +106,10 @@ export class Room {
         message: string,
         player: number
     ) => {
-        this.playersToSockets.get(player).emit(type as string, message);
+        this.getSocketFromId(this.playersToSocketIds.get(player)).emit(
+            type as string,
+            message
+        );
     };
 
     private queryClient = async (
@@ -94,15 +117,18 @@ export class Room {
         message: string,
         player: number
     ): Promise<any> => {
-        const socketId = this.playersToSockets.get(player).id;
-        if (!this.socketIdsToResponses.has(socketId)) {
-            // User disconnected, so their socket ID response key was removed
-            return null;
-        }
-        this.socketIdsToResponses.get(socketId).delete(type);
-        this.playersToSockets.get(player).emit(type as string, message);
+        const socketId = this.playersToSocketIds.get(player);
+        // if (!this.socketIdsToResponses.has(socketId)) {
+        //     // User disconnected, so their socket ID response key was removed
+        //     return null;
+        // }
+        this.socketIdsToResponses.delete(socketId);
+        this.getSocketFromId(this.playersToSocketIds.get(player)).emit(
+            type as string,
+            message
+        );
 
-        while (!this.socketIdsToResponses.get(socketId)?.get(type)) {
+        while (!this.socketIdsToResponses.get(socketId)) {
             await sleep(100);
         }
 
@@ -111,14 +137,11 @@ export class Room {
             return null;
         }
 
-        console.log(
-            "response:",
-            this.socketIdsToResponses.get(socketId).get(type)
-        );
-        return this.socketIdsToResponses.get(socketId).get(type);
+        console.log("response:", this.socketIdsToResponses.get(socketId));
+        return this.socketIdsToResponses.get(socketId);
     };
 
     public get NPlayers(): number {
-        return this.sockets.length;
+        return this.socketIds.length;
     }
 }

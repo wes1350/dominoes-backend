@@ -67,64 +67,89 @@ const wrap =
 
 io.use(wrap(sessionMiddleware));
 
-const socketIdsToSockets = new Map<string, Socket>();
+// Is this necessary? Maybe store in the session as a property
+// Map each session ID to all connected socket IDs (e.g. if there are multiple tabs)
+const sessionIdsToSocketIds = new Map<string, string[]>();
+
+const addSocketIdToSession = (sessionId: string, socketId: string) => {
+    if (!sessionIdsToSocketIds.has(sessionId)) {
+        sessionIdsToSocketIds.set(sessionId, [socketId]);
+    } else {
+        sessionIdsToSocketIds.get(sessionId).push(socketId);
+    }
+};
+
+const removeSocketIdFromSession = (sessionId: string, socketId: string) => {
+    if (sessionIdsToSocketIds.has(sessionId)) {
+        if (sessionIdsToSocketIds.get(sessionId).length === 1) {
+            sessionIdsToSocketIds.delete(sessionId);
+        } else {
+            sessionIdsToSocketIds.set(
+                sessionId,
+                sessionIdsToSocketIds
+                    .get(sessionId)
+                    .filter((id) => id !== socketId)
+            );
+        }
+    }
+};
+
+// Move this to Redis later
 const roomIdsToRooms = new Map<string, Room>();
-const socketIdsToRoomIds = new Map<string, string>();
 
 io.on("connection", (socket: Socket) => {
-    console.log(
-        `a user with session ID ${(socket.request as any).session.id} connected`
-    );
-    socketIdsToSockets.set(socket.id, socket);
+    const session = (socket.request as any).session;
+    const sessionId = session.id;
+
+    console.log(`a user with session ID ${sessionId} connected`);
+    addSocketIdToSession(sessionId, socket.id);
 
     socket.on("disconnect", () => {
-        // Maybe instead of deleting, we flag it as disconnected?
-        // This could help with reconnect?
-        socketIdsToSockets.delete(socket.id);
-        if (socketIdsToRoomIds.has(socket.id)) {
-            const room = roomIdsToRooms.get(socketIdsToRoomIds.get(socket.id));
-            room.RemoveSocketWithId(socket.id);
-            // Replace null here
-            room.Broadcast(MessageType.LEAVE_ROOM, null);
-        }
-        console.log("user disconnected");
+        console.log(`user with session ID ${sessionId} disconnected`);
+        removeSocketIdFromSession(sessionId, socket.id);
+
+        socket.rooms.forEach((roomId) => {
+            if (roomId !== socket.id) {
+                const room = roomIdsToRooms.get(roomId);
+                room.RemovePlayerBySocketId(socket.id);
+                // Replace with a user ID or something here
+                io.to(roomId).emit(MessageType.PLAYER_LEFT_ROOM, null);
+            }
+        });
     });
-
-    socket.on(
-        MessageType.JOIN_ROOM,
-        (roomId: string, userInfo: { name: string }) => {
-            console.log(`user joining room ${roomId}`);
-            socketIdsToRoomIds.set(socket.id, roomId);
-            if (!roomIdsToRooms.get(roomId)) {
-                roomIdsToRooms.set(roomId, new Room(roomId));
-            }
-            const room = roomIdsToRooms.get(roomId);
-            room.AddSocket(socket);
-            room.Broadcast(MessageType.JOIN_ROOM, userInfo);
-        }
-    );
-
-    socket.on(
-        MessageType.LEAVE_ROOM,
-        (roomId: string, userInfo: { name: string }) => {
-            console.log(`user leaving room ${roomId}`);
-            socketIdsToRoomIds.delete(socket.id);
-            const room = roomIdsToRooms.get(roomId);
-            if (room) {
-                room.Broadcast(MessageType.LEAVE_ROOM, userInfo);
-                room.RemoveSocketWithId(socket.id);
-            }
-        }
-    );
 
     socket.on(
         MessageType.GAME_START,
         (roomId: string, config: GameConfigDescription) => {
             console.log(`starting game for room ${roomId}`);
-
             roomIdsToRooms.get(roomId).StartGame(config);
         }
     );
+
+    socket.on(
+        MessageType.JOIN_ROOM,
+        (roomId: string, userInfo: { name: string }) => {
+            console.log(`user joining room ${roomId}`);
+            if (!roomIdsToRooms.get(roomId)) {
+                roomIdsToRooms.set(roomId, new Room(roomId, io));
+            }
+            socket.join(roomId);
+            roomIdsToRooms.get(roomId).AddPlayerBySocketId(socket.id);
+            // Replace with user ID or something similar
+            socket.to(roomId).emit(MessageType.PLAYER_JOINED_ROOM, "user");
+        }
+    );
+
+    socket.on(MessageType.LEAVE_ROOM, (roomId: string) => {
+        console.log(`user leaving room ${roomId}`);
+        if (!roomIdsToRooms.get(roomId)) {
+            console.warn("warning: tried to leave a room that did not exist");
+        }
+        roomIdsToRooms.get(roomId)?.RemovePlayerBySocketId(socket.id);
+        socket.leave(roomId);
+        // Replace with user ID or something similar
+        socket.to(roomId).emit(MessageType.PLAYER_LEFT_ROOM, "user");
+    });
 });
 
 app.get(
@@ -134,7 +159,6 @@ app.get(
         res: express.Response,
         next: express.NextFunction
     ) => {
-        console.log("sessionId:", req.sessionID);
         const roomIds = Array.from(roomIdsToRooms.keys());
         const roomDetails = roomIds.map((roomId) => ({
             id: roomId,
@@ -154,11 +178,12 @@ app.get(
         console.log("got a request to /createRoom");
         const roomIds = Array.from(roomIdsToRooms.keys());
         while (true) {
-            const newId = getRandomInt(0, 100000000).toString();
-            if (!roomIds.includes(newId)) {
+            const roomId = getRandomInt(0, 100000000).toString();
+            if (!roomIds.includes(roomId)) {
                 const roomDetails = {
-                    id: newId
+                    id: roomId
                 };
+                roomIdsToRooms.set(roomId, new Room(roomId, io));
                 res.json(roomDetails);
                 break;
             }

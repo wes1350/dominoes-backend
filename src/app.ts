@@ -7,7 +7,7 @@ import { GameConfigDescription } from "./interfaces/GameConfigDescription";
 import { Room } from "./Room";
 import { getRandomInt } from "./utils";
 import redis from "redis";
-import session from "express-session";
+import session, { SessionOptions } from "express-session";
 import connectRedis from "connect-redis";
 
 declare module "express-session" {
@@ -25,25 +25,28 @@ const corsOptions = {
     // optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
 };
 
+const devTestSecret = "dev-test-secret";
+
 const app = express();
 app.use(cors(corsOptions));
 
-app.use(
-    session({
-        cookie: {
-            // domain: ".app.localhost",
-            path: "/",
-            httpOnly: true,
-            secure: false,
-            maxAge: null
-            // sameSite: "lax"
-        },
-        store: new redisStore({ client: redisClient }),
-        saveUninitialized: false,
-        secret: "dev-test-secret",
-        resave: false
-    })
-);
+const sessionOptions: SessionOptions = {
+    cookie: {
+        // domain: ".app.localhost",
+        path: "/",
+        httpOnly: true,
+        secure: false,
+        maxAge: null
+    },
+    store: new redisStore({ client: redisClient }),
+    saveUninitialized: false,
+    secret: devTestSecret,
+    resave: false
+};
+
+const sessionMiddleware = session(sessionOptions);
+
+app.use(sessionMiddleware);
 
 const server = http.createServer(app);
 const { Server } = require("socket.io");
@@ -57,12 +60,21 @@ const io = new Server(server, {
     allowEIO3: true
 });
 
+// From https://socket.io/docs/v4/middlewares/
+const wrap =
+    (middleware: any) => (socket: Socket, next: express.NextFunction) =>
+        middleware(socket.request, {}, next);
+
+io.use(wrap(sessionMiddleware));
+
 const socketIdsToSockets = new Map<string, Socket>();
 const roomIdsToRooms = new Map<string, Room>();
 const socketIdsToRoomIds = new Map<string, string>();
 
 io.on("connection", (socket: Socket) => {
-    console.log("a user connected");
+    console.log(
+        `a user with session ID ${(socket.request as any).session.id} connected`
+    );
     socketIdsToSockets.set(socket.id, socket);
 
     socket.on("disconnect", () => {
@@ -122,20 +134,13 @@ app.get(
         res: express.Response,
         next: express.NextFunction
     ) => {
-        // console.log(req);
         console.log("sessionId:", req.sessionID);
-        console.log("got a request to /rooms");
-        if (!req.session.askCount) {
-            req.session.askCount = 1;
-        } else {
-            req.session.askCount += 1;
-        }
         const roomIds = Array.from(roomIdsToRooms.keys());
         const roomDetails = roomIds.map((roomId) => ({
             id: roomId,
             nPlayers: roomIdsToRooms.get(roomId).NPlayers
         }));
-        res.json({ rooms: roomDetails, askCount: req.session.askCount });
+        res.json({ rooms: roomDetails });
     }
 );
 

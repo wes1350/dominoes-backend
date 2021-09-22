@@ -12,7 +12,7 @@ import connectRedis from "connect-redis";
 
 declare module "express-session" {
     interface SessionData {
-        askCount: number;
+        playerName: string;
     }
 }
 
@@ -29,6 +29,7 @@ const devTestSecret = "dev-test-secret";
 
 const app = express();
 app.use(cors(corsOptions));
+app.use(express.json());
 
 const sessionOptions: SessionOptions = {
     cookie: {
@@ -153,6 +154,34 @@ io.on("connection", (socket: Socket) => {
 });
 
 app.get(
+    "/getName",
+    (
+        req: express.Request,
+        res: express.Response,
+        next: express.NextFunction
+    ) => {
+        res.send({ name: req.session.playerName });
+    }
+);
+
+app.post(
+    "/setName",
+    (
+        req: express.Request,
+        res: express.Response,
+        next: express.NextFunction
+    ) => {
+        const name = req.body.name;
+        if (name) {
+            req.session.playerName = name;
+            res.send(true);
+        } else {
+            res.send(false);
+        }
+    }
+);
+
+app.get(
     "/rooms",
     (
         req: express.Request,
@@ -168,7 +197,7 @@ app.get(
     }
 );
 
-app.get(
+app.post(
     "/createRoom",
     (
         req: express.Request,
@@ -180,9 +209,6 @@ app.get(
         while (true) {
             const roomId = getRandomInt(0, 100000000).toString();
             if (!roomIds.includes(roomId)) {
-                const roomDetails = {
-                    id: roomId
-                };
                 roomIdsToRooms.set(roomId, new Room(roomId, io));
                 res.send(roomId);
                 break;

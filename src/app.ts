@@ -184,7 +184,7 @@ app.get(
                     id: roomId
                 };
                 roomIdsToRooms.set(roomId, new Room(roomId, io));
-                res.json(roomDetails);
+                res.send(roomId);
                 break;
             }
         }

@@ -143,13 +143,18 @@ io.on("connection", (socket: Socket) => {
 
     socket.on(MessageType.LEAVE_ROOM, (roomId: string) => {
         console.log(`user leaving room ${roomId}`);
-        if (!roomIdsToRooms.get(roomId)) {
+        const room = roomIdsToRooms.get(roomId);
+        if (!room) {
             console.warn("warning: tried to leave a room that did not exist");
         }
-        roomIdsToRooms.get(roomId)?.RemovePlayerBySocketId(socket.id);
+        room?.RemovePlayerBySocketId(socket.id);
         socket.leave(roomId);
         // Replace with user ID or something similar
-        socket.to(roomId).emit(MessageType.PLAYER_LEFT_ROOM, "user");
+        if (room?.NPlayers > 0) {
+            socket.to(roomId).emit(MessageType.PLAYER_LEFT_ROOM, "user");
+        } else {
+            roomIdsToRooms.delete(roomId);
+        }
     });
 });
 

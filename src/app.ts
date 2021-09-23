@@ -97,6 +97,7 @@ const removeSocketIdFromSession = (sessionId: string, socketId: string) => {
 
 // Move this to Redis later
 const roomIdsToRooms = new Map<string, Room>();
+const socketIdsToRoomIds = new Map<string, string[]>();
 
 io.on("connection", (socket: Socket) => {
     const session = (socket.request as any).session;
@@ -104,17 +105,20 @@ io.on("connection", (socket: Socket) => {
 
     console.log(`a user with session ID ${sessionId} connected`);
     addSocketIdToSession(sessionId, socket.id);
+    socketIdsToRoomIds.set(socket.id, []);
 
     socket.on("disconnect", () => {
         console.log(`user with session ID ${sessionId} disconnected`);
         removeSocketIdFromSession(sessionId, socket.id);
 
-        socket.rooms.forEach((roomId) => {
-            if (roomId !== socket.id) {
-                const room = roomIdsToRooms.get(roomId);
-                room.RemovePlayerBySocketId(socket.id);
-                // Replace with a user ID or something here
+        socketIdsToRoomIds.get(socket.id).forEach((roomId) => {
+            const room = roomIdsToRooms.get(roomId);
+            room.RemovePlayerBySocketId(socket.id);
+            // Replace with a user ID or something here
+            if (room.NPlayers > 0) {
                 io.to(roomId).emit(MessageType.PLAYER_LEFT_ROOM, null);
+            } else {
+                roomIdsToRooms.delete(roomId);
             }
         });
     });
@@ -134,6 +138,9 @@ io.on("connection", (socket: Socket) => {
             if (!roomIdsToRooms.get(roomId)) {
                 roomIdsToRooms.set(roomId, new Room(roomId, io));
             }
+            if (!socketIdsToRoomIds.get(socket.id).includes(roomId)) {
+                socketIdsToRoomIds.get(socket.id).push(roomId);
+            }
             socket.join(roomId);
             roomIdsToRooms.get(roomId).AddPlayerBySocketId(socket.id);
             // Replace with user ID or something similar
@@ -148,6 +155,14 @@ io.on("connection", (socket: Socket) => {
             console.warn("warning: tried to leave a room that did not exist");
         }
         room?.RemovePlayerBySocketId(socket.id);
+        const roomIdsForSocket = socketIdsToRoomIds.get(socket.id);
+        const roomIdIndex = roomIdsForSocket.findIndex(
+            (value: string) => value === roomId
+        );
+        socketIdsToRoomIds.set(
+            socket.id,
+            roomIdsForSocket.splice(roomIdIndex, 1)
+        );
         socket.leave(roomId);
         // Replace with user ID or something similar
         if (room?.NPlayers > 0) {

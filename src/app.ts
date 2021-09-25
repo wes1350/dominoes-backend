@@ -115,6 +115,7 @@ io.on("connection", (socket: Socket) => {
         socketIdsToRoomIds.get(socket.id).forEach((roomId) => {
             const room = roomIdsToRooms.get(roomId);
             if (room) {
+                console.log(`user disconnected, removing from room ${roomId}`);
                 room.RemovePlayerBySocketId(socket.id);
                 // Replace with a user ID or something here
                 if (room.NPlayers > 0) {
@@ -154,9 +155,12 @@ io.on("connection", (socket: Socket) => {
                     socketIdsToRoomIds.get(socket.id).push(roomId);
                 }
                 socket.join(roomId);
-                roomIdsToRooms
-                    .get(roomId)
-                    .AddPlayer(socket.id, session.playerName);
+                const room = roomIdsToRooms.get(roomId);
+                room.AddPlayer(socket.id, session.playerName);
+                io.to(roomId).emit(
+                    MessageType.ROOM_DETAILS,
+                    room.PlayerDetails
+                );
                 // Replace with user ID or something similar
                 socket.to(roomId).emit(MessageType.PLAYER_JOINED_ROOM, "user");
             }
@@ -181,6 +185,7 @@ io.on("connection", (socket: Socket) => {
         socket.leave(roomId);
         // Replace with user ID or something similar
         if (room?.NPlayers > 0) {
+            io.to(roomId).emit(MessageType.ROOM_DETAILS, room.PlayerDetails);
             socket.to(roomId).emit(MessageType.PLAYER_LEFT_ROOM, "user");
         } else {
             roomIdsToRooms.delete(roomId);

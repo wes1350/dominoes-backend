@@ -31,6 +31,12 @@ export class Room {
         return this.io.sockets.sockets.get(socketId) as Socket;
     }
 
+    public get PlayerDetails(): { name: string }[] {
+        return Array.from(this.socketIdsToNames.values()).map((name) => ({
+            name: name
+        }));
+    }
+
     public AddPlayer(socketId: string, playerName: string): void {
         console.log(
             `adding socket with ID ${socketId} and name ${playerName} to room ${this.id}`
@@ -49,6 +55,7 @@ export class Room {
     public RemovePlayerBySocketId(socketId: string): void {
         // this.sockets = this.sockets.filter((socket) => socket.id !== id);
         this.socketIdsToResponses.delete(socketId);
+        this.socketIdsToNames.delete(socketId);
     }
 
     public StartGame(config: GameConfigDescription): void {

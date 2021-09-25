@@ -22,7 +22,8 @@ export enum MessageType {
     JOIN_ROOM = "JOIN_ROOM",
     PLAYER_JOINED_ROOM = "PLAYER_JOINED_ROOM",
     LEAVE_ROOM = "LEAVE_ROOM",
-    PLAYER_LEFT_ROOM = "PLAYER_LEFT_ROOM"
+    PLAYER_LEFT_ROOM = "PLAYER_LEFT_ROOM",
+    ROOM_DETAILS = "ROOM_DETAILS"
 }
 
 export enum Direction {

@@ -17,7 +17,8 @@ declare module "express-session" {
 }
 
 const redisClient = redis.createClient();
-const redisStore = connectRedis(session);
+const RedisStore = connectRedis(session);
+const redisStoreInstance = new RedisStore({ client: redisClient });
 
 const corsOptions = {
     origin: "http://localhost:3000",
@@ -39,7 +40,7 @@ const sessionOptions: SessionOptions = {
         secure: false,
         maxAge: null
     },
-    store: new redisStore({ client: redisClient }),
+    store: redisStoreInstance,
     saveUninitialized: false,
     secret: devTestSecret,
     resave: false
@@ -113,12 +114,14 @@ io.on("connection", (socket: Socket) => {
 
         socketIdsToRoomIds.get(socket.id).forEach((roomId) => {
             const room = roomIdsToRooms.get(roomId);
-            room.RemovePlayerBySocketId(socket.id);
-            // Replace with a user ID or something here
-            if (room.NPlayers > 0) {
-                io.to(roomId).emit(MessageType.PLAYER_LEFT_ROOM, null);
-            } else {
-                roomIdsToRooms.delete(roomId);
+            if (room) {
+                room.RemovePlayerBySocketId(socket.id);
+                // Replace with a user ID or something here
+                if (room.NPlayers > 0) {
+                    io.to(roomId).emit(MessageType.PLAYER_LEFT_ROOM, null);
+                } else {
+                    roomIdsToRooms.delete(roomId);
+                }
             }
         });
     });
@@ -131,22 +134,34 @@ io.on("connection", (socket: Socket) => {
         }
     );
 
-    socket.on(
-        MessageType.JOIN_ROOM,
-        (roomId: string, userInfo: { name: string }) => {
-            console.log(`user joining room ${roomId}`);
-            if (!roomIdsToRooms.get(roomId)) {
-                roomIdsToRooms.set(roomId, new Room(roomId, io));
+    socket.on(MessageType.JOIN_ROOM, (roomId: string) => {
+        console.log("socket session ID:", (socket.request as any).session.id);
+        redisStoreInstance.get(
+            (socket.request as any).session.id,
+            (error, session) => {
+                if (error) {
+                    console.error(error);
+                    return;
+                }
+
+                console.log(
+                    `user ${session.playerName} joining room ${roomId}`
+                );
+                if (!roomIdsToRooms.get(roomId)) {
+                    roomIdsToRooms.set(roomId, new Room(roomId, io));
+                }
+                if (!socketIdsToRoomIds.get(socket.id).includes(roomId)) {
+                    socketIdsToRoomIds.get(socket.id).push(roomId);
+                }
+                socket.join(roomId);
+                roomIdsToRooms
+                    .get(roomId)
+                    .AddPlayer(socket.id, session.playerName);
+                // Replace with user ID or something similar
+                socket.to(roomId).emit(MessageType.PLAYER_JOINED_ROOM, "user");
             }
-            if (!socketIdsToRoomIds.get(socket.id).includes(roomId)) {
-                socketIdsToRoomIds.get(socket.id).push(roomId);
-            }
-            socket.join(roomId);
-            roomIdsToRooms.get(roomId).AddPlayerBySocketId(socket.id);
-            // Replace with user ID or something similar
-            socket.to(roomId).emit(MessageType.PLAYER_JOINED_ROOM, "user");
-        }
-    );
+        );
+    });
 
     socket.on(MessageType.LEAVE_ROOM, (roomId: string) => {
         console.log(`user leaving room ${roomId}`);
@@ -180,7 +195,13 @@ app.get(
         res: express.Response,
         next: express.NextFunction
     ) => {
-        res.send({ name: req.session.playerName });
+        if (req.session.playerName) {
+            res.send({ name: req.session.playerName });
+        } else {
+            const guestName = `Guest-${getRandomInt(1, 1000000)}`;
+            req.session.playerName = guestName;
+            res.send({ name: guestName });
+        }
     }
 );
 
@@ -194,8 +215,10 @@ app.post(
         const name = req.body.name;
         if (name) {
             req.session.playerName = name;
+            console.log("user changed name to:", name);
             res.send(true);
         } else {
+            console.log("name was empty, not changing");
             res.send(false);
         }
     }

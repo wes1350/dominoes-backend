@@ -343,18 +343,6 @@ export class Engine {
         return this._players[player].Score;
     }
 
-    public PlayerRepresentationsForSeat(
-        seatNumber: number
-    ): { seatNumber: number; name: string; isMe: boolean }[] {
-        return this._players.map((player, i) => {
-            return {
-                seatNumber: i,
-                name: player.Id.toString(),
-                isMe: i === seatNumber
-            };
-        });
-    }
-
     public async queryMove(
         player: number,
         play_fresh = false

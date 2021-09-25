@@ -2,18 +2,20 @@ import { Socket } from "socket.io";
 import { Engine } from "./Engine";
 import { MessageType, QueryType } from "./Enums";
 import { GameConfigDescription } from "./interfaces/GameConfigDescription";
-import { sleep } from "./utils";
+import { shuffleArray, sleep } from "./utils";
 
 export class Room {
     private io: any;
     private id: string;
     private socketIdsToResponses: Map<string, string>;
+    private socketIdsToNames: Map<string, string>;
     private playersToSocketIds: Map<number, string>;
 
     constructor(id: string, io: any) {
         this.io = io;
         this.id = id;
         this.socketIdsToResponses = new Map<string, string>();
+        this.socketIdsToNames = new Map<string, string>();
         this.playersToSocketIds = new Map<number, string>();
     }
 
@@ -29,8 +31,10 @@ export class Room {
         return this.io.sockets.sockets.get(socketId) as Socket;
     }
 
-    public AddPlayerBySocketId(socketId: string): void {
-        console.log(`adding socket with ID ${socketId} to room ${this.id}`);
+    public AddPlayer(socketId: string, playerName: string): void {
+        console.log(
+            `adding socket with ID ${socketId} and name ${playerName} to room ${this.id}`
+        );
         if (!this.socketIdsToResponses.has(socketId)) {
             this.socketIdsToResponses.set(socketId, null);
         } else {
@@ -38,6 +42,8 @@ export class Room {
                 `Tried to add socket id ${socketId} to room ${this.id} when it already existed in the room`
             );
         }
+
+        this.socketIdsToNames.set(socketId, playerName);
     }
 
     public RemovePlayerBySocketId(socketId: string): void {
@@ -47,8 +53,8 @@ export class Room {
 
     public StartGame(config: GameConfigDescription): void {
         console.log("config:", config);
-        this.socketIds.forEach((socketId: string, i: number) => {
-            // Later, randomize order
+        const randomlyOrderedSocketIds = shuffleArray(this.socketIds);
+        randomlyOrderedSocketIds.forEach((socketId: string, i: number) => {
             this.playersToSocketIds.set(i, socketId);
             this.socketIdsToResponses.set(socketId, null);
 
@@ -77,7 +83,7 @@ export class Room {
 
         this.players.forEach((player: number) => {
             const gameDetails = {
-                players: engine.PlayerRepresentationsForSeat(player),
+                players: this.getPlayerRepresentationsForSeat(player),
                 config: {
                     n_dominoes: config.HandSize
                 }
@@ -92,6 +98,16 @@ export class Room {
         engine.RunGame().then((winner) => {
             console.log("Winner:", winner);
         });
+    }
+
+    private getPlayerRepresentationsForSeat(
+        seatNumber: number
+    ): { seatNumber: number; name: string; isMe: boolean }[] {
+        return this.players.map((_p, i) => ({
+            seatNumber: i,
+            name: this.socketIdsToNames.get(this.playersToSocketIds.get(i)),
+            isMe: i === seatNumber
+        }));
     }
 
     private broadcast(messageType: MessageType, payload: any) {

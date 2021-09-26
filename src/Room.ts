@@ -114,6 +114,7 @@ export class Room {
             this.RemovePlayerBySocketId(socketId);
             this.io.sockets.sockets.get(socketId).leave(this.id);
         });
+        this.playersToSocketIds = new Map();
     };
 
     private getNameBySeat = (seat: number) => {
@@ -132,7 +133,9 @@ export class Room {
 
     private broadcast(messageType: MessageType, payload: any) {
         console.log(
-            `broadcasting ${payload} of type ${messageType} to room ${this.id}`
+            `broadcasting ${
+                typeof payload === "object" ? JSON.stringify(payload) : payload
+            } of type ${messageType} to room ${this.id}`
         );
         this.io.to(this.id).emit(messageType, payload);
     }

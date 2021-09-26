@@ -104,15 +104,28 @@ export class Room {
 
         engine.RunGame().then((winner) => {
             console.log("Winner:", winner);
+            this.broadcast(MessageType.GAME_OVER, this.getNameBySeat(winner));
+            this.clear();
         });
     }
+
+    private clear = () => {
+        this.socketIds.forEach((socketId) => {
+            this.RemovePlayerBySocketId(socketId);
+            this.io.sockets.sockets.get(socketId).leave(this.id);
+        });
+    };
+
+    private getNameBySeat = (seat: number) => {
+        return this.socketIdsToNames.get(this.playersToSocketIds.get(seat));
+    };
 
     private getPlayerRepresentationsForSeat(
         seatNumber: number
     ): { seatNumber: number; name: string; isMe: boolean }[] {
         return this.players.map((_p, i) => ({
             seatNumber: i,
-            name: this.socketIdsToNames.get(this.playersToSocketIds.get(i)),
+            name: this.getNameBySeat(i),
             isMe: i === seatNumber
         }));
     }

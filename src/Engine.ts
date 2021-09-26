@@ -96,7 +96,6 @@ export class Engine {
         const winner = scores.findIndex(
             (score: number) => score === Math.max(...scores)
         );
-        this.shout(MessageType.GAME_OVER, winner);
         this.shoutLog(`Game is over, player ${winner} wins!`);
         return winner;
     }

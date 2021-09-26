@@ -42,6 +42,10 @@ export class Domino {
         this._reversed = true;
     }
 
+    public IsReversed() {
+        return this._reversed;
+    }
+
     public get Head(): number {
         return this._reversed ? this.Small : this.Big;
     }

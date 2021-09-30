@@ -1,8 +1,5 @@
-// import { Dir } from "fs";
-// import { Direction } from "readline";
 import { Domino } from "./Domino";
 import { Direction } from "./Enums";
-// var Domino = require("./Domino");
 
 export class Board {
     private _board: Map<number, Map<number, Domino>>;
@@ -41,7 +38,6 @@ export class Board {
         direction = Direction.NONE
     ): { x: number; y: number } {
         let [valid, reverse] = this.VerifyPlacement(domino, direction);
-        console.log("adding domino:", domino, valid, reverse);
         let x, y;
         if (!valid) {
             throw new Error(
@@ -49,7 +45,7 @@ export class Board {
             );
         }
 
-        if (direction === "") {
+        if (direction === Direction.NONE) {
             // When placing the first domino
             if (this._dominoExistsAt(0, 0)) {
                 throw new Error(

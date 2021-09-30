@@ -55,12 +55,6 @@ export class Player {
         return this._hand.length === 0;
     }
 
-    public get HandJSON(): string {
-        return JSON.stringify(
-            this._hand.map((domino) => [domino.Head, domino.Tail])
-        );
-    }
-
     public get HandRep(): { Face1: number; Face2: number }[] {
         return this.Hand.map((domino) => ({
             Face1: domino.Big,

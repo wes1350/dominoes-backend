@@ -31,7 +31,7 @@
     },
     "scripts": {
         "start": "nodemon --exec node -r ts-node/register src/app.ts",
-        "startlocal": "nodemon --exec node -r ts-node/register src/index.ts",
+        "startlocal": "nodemon --exec node -r ts-node/register src/localApp.ts",
         "test": "echo \"Error: no test specified\" && exit 1",
         "lint": "eslint . --ext .ts"
     },

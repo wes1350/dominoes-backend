@@ -4,9 +4,7 @@ import { Domino } from "./Domino";
 import { Pack } from "./Pack";
 import { Player } from "./Player";
 import * as _ from "lodash";
-import * as readline from "readline";
 import { QueryType, MessageType, Direction } from "./Enums";
-import { GameLogMessage } from "./MessageTypes";
 import { GameConfigDescription } from "./interfaces/GameConfigDescription";
 
 export class Engine {
@@ -20,15 +18,14 @@ export class Engine {
     private _pack: Pack;
     private _current_player: number;
     private _n_passes: number;
-    private _local: boolean;
-    private _shout: (type: MessageType, payload: any) => void;
+    private _shout: (type: MessageType, payload?: any) => void;
     private _whisper: (type: MessageType, payload: any, index: number) => void;
     private _query: (
         type: QueryType,
         message: string,
         player: number
     ) => Promise<any>;
-    private rl: any;
+    private _local?: boolean;
 
     public constructor(
         n_players: number,
@@ -38,12 +35,13 @@ export class Engine {
             payload: any,
             index: number
         ) => void = null,
-        shout_f: (type: MessageType, payload: any) => void = null,
+        shout_f: (type: MessageType, payload?: any) => void = null,
         query_f: (
             type: QueryType,
             message: string,
             player: number
-        ) => Promise<any> = null
+        ) => Promise<any> = null,
+        local?: boolean
     ) {
         this._config = new Config(configDescription);
         this._n_players = n_players ?? this._config.NPlayers;
@@ -59,32 +57,14 @@ export class Engine {
         this._current_player = null;
         this._n_passes = 0;
 
-        // if ([shout_f, whisper_f, query_f].includes(null)) {
-        //     throw new Error(
-        //         "Must specify both shout, whisper, and retrieve functions or omit all"
-        //     );
-        // }
-
-        this._local = shout_f === null;
-        if (this._local) {
-            throw new Error("Should not be local for now");
-        }
         this._shout = shout_f;
         this._whisper = whisper_f;
         this._query = query_f;
-        this.rl = this._local
-            ? readline.createInterface({
-                  input: process.stdin,
-                  output: process.stdout
-              })
-            : null;
+        this._local = local;
     }
 
     public async RunGame(): Promise<number> {
         // Start and run a game until completion, handling game logic as necessary.
-        if (this._local) {
-            this.InitializeRound(true);
-        }
         let next_round_fresh = await this.PlayRound(true);
         while (!this.GameIsOver()) {
             this.InitializeRound(next_round_fresh);
@@ -96,27 +76,22 @@ export class Engine {
         const winner = scores.findIndex(
             (score: number) => score === Math.max(...scores)
         );
-        this.shoutLog(`Game is over, player ${winner} wins!`);
         return winner;
     }
 
     public InitializeRound(fresh_round = false) {
         this._board = new Board();
         this.DrawHands(fresh_round);
-        this.shout(MessageType.CLEAR_BOARD);
-        this.shoutLog("");
+        this._shout(MessageType.CLEAR_BOARD);
     }
 
     public async PlayRound(fresh_round = false) {
-        this.shoutLog("New round started.");
         if (fresh_round) {
             this._current_player = this.DetermineFirstPlayer();
         }
-        if (!this._local) {
-            this.shout(MessageType.NEW_ROUND, {
-                currentPlayer: this.CurrentPlayer
-            });
-        }
+        this._shout(MessageType.NEW_ROUND, {
+            currentPlayer: this.CurrentPlayer
+        });
         let blocked = false;
         let play_fresh = fresh_round;
         while (this.PlayersHaveDominoes() && !blocked && !this.GameIsOver()) {
@@ -134,30 +109,21 @@ export class Engine {
                 (this.CurrentPlayer + this._n_players - 1) % this._n_players;
             const scoreOnDomino = this.GetValueOnDomino(this.CurrentPlayer);
             this._players[this.CurrentPlayer].AddPoints(scoreOnDomino);
-            this.shout(MessageType.SCORE, {
+            this._shout(MessageType.SCORE, {
                 seat: this.CurrentPlayer,
                 score: scoreOnDomino
             });
-            this.shoutLog(
-                `Player ${this.CurrentPlayer} dominoed and scored ${scoreOnDomino} points.`
-            );
-            this.shout(MessageType.PLAYER_DOMINOED);
+            this._shout(MessageType.PLAYER_DOMINOED);
             return false;
         } else if (blocked) {
-            this.shoutLog("Board is blocked.");
-            this.shout(MessageType.GAME_BLOCKED);
+            this._shout(MessageType.GAME_BLOCKED);
             let [blocked_scorer, points] = this.GetBlockedResult();
             if (blocked_scorer !== null) {
-                this.shoutLog(
-                    `Player ${blocked_scorer} scores ${points} from the block.`
-                );
-                this.shout(MessageType.SCORE, {
+                this._shout(MessageType.SCORE, {
                     seat: blocked_scorer,
                     score: points
                 });
                 this._players[blocked_scorer].AddPoints(points);
-            } else {
-                this.shoutLog(`Nobody scores any points from the block.`);
             }
             return true;
         } else {
@@ -178,44 +144,34 @@ export class Engine {
             const addedCoordinate = this._board.AddDomino(domino, direction);
             const placementRep = this.GetPlacementRep(domino, direction);
             this._players[this.CurrentPlayer].RemoveDomino(domino);
-            if (!this._local) {
-                this.shout(MessageType.TURN, {
-                    seat: this.CurrentPlayer,
-                    domino: {
-                        Face1: domino.Big,
-                        Face2: domino.Small
-                    },
-                    direction: placementRep.direction,
-                    coordinate: {
-                        X: addedCoordinate.x,
-                        Y: addedCoordinate.y
-                    }
-                });
-
-                this.whisper(
-                    MessageType.HAND,
-                    this._players[this.CurrentPlayer].HandRep,
-                    this.CurrentPlayer
-                );
-
-                this.shout(MessageType.DOMINO_PLAYED, {
-                    seat: this.CurrentPlayer
-                });
-
-                this.shoutLog(
-                    `Player ${this.CurrentPlayer} plays ${domino.Rep}.`
-                );
-
-                if (this._board.Score) {
-                    this.shout(MessageType.SCORE, {
-                        seat: this.CurrentPlayer,
-                        score: this._board.Score
-                    });
-
-                    this.shoutLog(
-                        `Player ${this.CurrentPlayer} scores ${this._board.Score}.`
-                    );
+            this._shout(MessageType.TURN, {
+                seat: this.CurrentPlayer,
+                domino: {
+                    Face1: domino.Big,
+                    Face2: domino.Small
+                },
+                direction: placementRep.direction,
+                coordinate: {
+                    X: addedCoordinate.x,
+                    Y: addedCoordinate.y
                 }
+            });
+
+            this._whisper(
+                MessageType.HAND,
+                this._players[this.CurrentPlayer].HandRep,
+                this.CurrentPlayer
+            );
+
+            this._shout(MessageType.DOMINO_PLAYED, {
+                seat: this.CurrentPlayer
+            });
+
+            if (this._board.Score) {
+                this._shout(MessageType.SCORE, {
+                    seat: this.CurrentPlayer,
+                    score: this._board.Score
+                });
             }
 
             this._players[this.CurrentPlayer].AddPoints(this._board.Score);
@@ -224,22 +180,20 @@ export class Engine {
             // Player passes
             this._n_passes += 1;
 
-            if (!this._local) {
-                this.shout(MessageType.TURN, {
-                    seat: this.CurrentPlayer,
-                    domino: null,
-                    direction: null,
-                    coordinate: null
-                });
-            }
-
-            this.shoutLog(`Player ${this.CurrentPlayer} passes.`);
+            this._shout(MessageType.TURN, {
+                seat: this.CurrentPlayer,
+                domino: null,
+                direction: null,
+                coordinate: null
+            });
         }
         if (this._n_passes == this._n_players) {
             return true;
         }
 
-        console.log(this._board.Rep);
+        if (this._local) {
+            console.log("\n\n" + this._board.Rep + "\n");
+        }
 
         return false;
     }
@@ -258,21 +212,12 @@ export class Engine {
             }
             if (this.VerifyHands(hands, fresh_round, this._check_5_doubles)) {
                 for (let i = 0; i < this._n_players; i++) {
-                    console.log("Sending hand:", i);
                     this._players[i].AssignHand(hands[i]);
-                    if (this._local) {
-                        this.whisper(
-                            MessageType.HAND,
-                            this._players[i].HandJSON,
-                            i
-                        );
-                    } else {
-                        this.whisper(
-                            MessageType.HAND,
-                            this._players[i].HandRep,
-                            i
-                        );
-                    }
+                    this._whisper(
+                        MessageType.HAND,
+                        this._players[i].HandRep,
+                        i
+                    );
                 }
                 return;
             }
@@ -351,34 +296,31 @@ export class Engine {
                 this._players[player].Hand,
                 play_fresh
             );
-            const pretty_placements = possible_placements.map((el) => {
-                return { index: el.index, rep: el.domino.Rep, dirs: el.dirs };
-            });
-            console.log("Possible placements:");
-            pretty_placements.forEach((el) => {
-                console.log(
-                    ` --- ${el.index}: ${el.rep}, [${el.dirs.join(", ")}]`
-                );
-            });
-            if (!this._local) {
-                const playable_Dominoes = _.range(
-                    0,
-                    pretty_placements.length
-                ).filter((i) => pretty_placements[i].dirs.length > 0);
-                this.whisper(
-                    MessageType.PLAYABLE_DOMINOES,
-                    playable_Dominoes.toString(),
-                    player
-                );
+            if (this._local) {
+                console.log("Possible placements:");
+                possible_placements.forEach((el) => {
+                    console.log(
+                        ` --- ${el.index}: ${el.domino.Rep}, [${el.dirs.join(
+                            ", "
+                        )}]`
+                    );
+                });
             }
+            const playableDominoes = possible_placements
+                .map((p, i) => (p.dirs.length > 0 ? i : -1))
+                .filter((index) => index !== -1);
+            this._whisper(
+                MessageType.PLAYABLE_DOMINOES,
+                playableDominoes.toString(),
+                player
+            );
             const move_possible = !!possible_placements.find(
                 (p) => p.dirs.length > 0
             );
             if (move_possible) {
                 try {
-                    // Local mode no longer supported, need to re-implement it
                     const response: { domino: number; direction: string } =
-                        await this.query(
+                        await this._query(
                             QueryType.MOVE,
                             `Player ${player}, make a move`,
                             player
@@ -397,7 +339,7 @@ export class Engine {
                         ) ||
                         possible_placements[dominoIndex].dirs.length === 0
                     ) {
-                        this.whisper(
+                        this._whisper(
                             MessageType.ERROR,
                             "Invalid domino choice: " + dominoIndex.toString(),
                             player
@@ -415,7 +357,7 @@ export class Engine {
                                 direction
                             )
                         ) {
-                            this.whisper(
+                            this._whisper(
                                 MessageType.ERROR,
                                 "Invalid domino choice: " +
                                     dominoIndex.toString(),
@@ -431,7 +373,7 @@ export class Engine {
                     };
                 } catch (err) {
                     console.error(err);
-                    this.whisper(
+                    this._whisper(
                         MessageType.ERROR,
                         "Invalid input, try again",
                         player
@@ -441,33 +383,15 @@ export class Engine {
                 const pulled = this._pack.Pull();
 
                 if (pulled !== null) {
-                    if (this._local) {
-                        this.shout(
-                            MessageType.PULL,
-                            `Player ${player} cannot play, pulls a domino`
-                        );
-                    } else {
-                        this.shout(MessageType.PULL, {
-                            seat: this.CurrentPlayer
-                        });
-                        this.shoutLog(
-                            `Player ${this.CurrentPlayer} pulls a domino.`
-                        );
-                    }
+                    this._shout(MessageType.PULL, {
+                        seat: this.CurrentPlayer
+                    });
                     this._players[player].AddDomino(pulled[0]);
-                    if (this._local) {
-                        this.whisper(
-                            MessageType.HAND,
-                            this._players[player].HandJSON,
-                            player
-                        );
-                    } else {
-                        this.whisper(
-                            MessageType.HAND,
-                            this._players[player].HandRep,
-                            player
-                        );
-                    }
+                    this._whisper(
+                        MessageType.HAND,
+                        this._players[player].HandRep,
+                        player
+                    );
                 } else {
                     return { domino: null, direction: null };
                 }
@@ -568,58 +492,6 @@ export class Engine {
     public get CurrentPlayer(): number {
         return this._current_player;
     }
-
-    public whisper(type: MessageType, payload: any, player: number) {
-        console.log("whisper to player:", player, ":", payload);
-        if (this._local) {
-            console.log("whisper to player:", player, ":", payload);
-            // this._whisper_f(message, player, tag);
-            // this.input(message);
-        } else {
-            this._whisper(type, payload, player);
-        }
-    }
-
-    public shout(type: MessageType, payload?: any) {
-        console.log("shout:", payload);
-        if (!this._local) {
-            this._shout(type, payload);
-        }
-    }
-
-    public shoutLog(message: string) {
-        if (!this._local) {
-            this.shout(MessageType.GAME_LOG, {
-                public: true,
-                message: message
-            } as GameLogMessage);
-        }
-    }
-
-    public whisperLog(message: string, player: number) {
-        if (!this._local) {
-            this.whisper(
-                MessageType.GAME_LOG,
-                {
-                    public: false,
-                    message: message
-                } as GameLogMessage,
-                player
-            );
-        }
-    }
-
-    public input(message: string): Promise<string> {
-        return new Promise((resolve, reject) => {
-            this.rl.question(message, (input: string) => resolve(input));
-        });
-    }
-
-    public query = (
-        type: QueryType,
-        message: string,
-        player: number
-    ): Promise<any> => {
-        return this._query(type, message, player);
-    };
 }
+
+module.exports = { Engine };

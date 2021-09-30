@@ -1,10 +1,6 @@
-export enum QueryType {
-    MOVE = "QUERY_MOVE"
-}
-
 export enum MessageType {
     ADD_DOMINO = "ADD_DOMINO",
-    PLAYABLE_DOMINOES = "PLAYABLE_DOMINOES",
+    POSSIBLE_PLAYS = "POSSIBLE_PLAYS",
     HAND = "HAND",
     GAME_START = "GAME_START",
     GAME_OVER = "GAME_OVER",
@@ -19,17 +15,10 @@ export enum MessageType {
     GAME_LOG = "GAME_LOG",
     PLAYER_DOMINOED = "PLAYER_DOMINOED",
     GAME_BLOCKED = "GAME_BLOCKED",
+    CREATE_ROOM = "CREATE_ROOM",
     JOIN_ROOM = "JOIN_ROOM",
     PLAYER_JOINED_ROOM = "PLAYER_JOINED_ROOM",
     LEAVE_ROOM = "LEAVE_ROOM",
     PLAYER_LEFT_ROOM = "PLAYER_LEFT_ROOM",
     ROOM_DETAILS = "ROOM_DETAILS"
-}
-
-export enum Direction {
-    NORTH = "N",
-    EAST = "E",
-    SOUTH = "S",
-    WEST = "W",
-    NONE = "X"
 }

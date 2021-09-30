@@ -4,8 +4,11 @@ import { Domino } from "./Domino";
 import { Pack } from "./Pack";
 import { Player } from "./Player";
 import * as _ from "lodash";
-import { QueryType, MessageType, Direction } from "./Enums";
 import { GameConfigDescription } from "./interfaces/GameConfigDescription";
+import { MessageType } from "./enums/MessageType";
+import { QueryType } from "./enums/QueryType";
+import { Direction } from "./enums/Direction";
+import { PossiblePlaysMessage } from "./interfaces/PossiblePlaysMessage";
 
 export class Engine {
     private _config: Config;
@@ -306,12 +309,18 @@ export class Engine {
                     );
                 });
             }
-            const playableDominoes = possible_placements
-                .map((p, i) => (p.dirs.length > 0 ? i : -1))
-                .filter((index) => index !== -1);
             this._whisper(
-                MessageType.PLAYABLE_DOMINOES,
-                playableDominoes.toString(),
+                MessageType.POSSIBLE_PLAYS,
+                {
+                    plays: _.flatten(
+                        possible_placements.map((placement) =>
+                            placement.dirs.map((dir) => ({
+                                domino: placement.index,
+                                direction: dir
+                            }))
+                        )
+                    )
+                } as PossiblePlaysMessage,
                 player
             );
             const move_possible = !!possible_placements.find(

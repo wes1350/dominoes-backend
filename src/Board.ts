@@ -1,5 +1,5 @@
 import { Domino } from "./Domino";
-import { Direction } from "./Enums";
+import { Direction } from "./enums/Direction";
 
 export class Board {
     private _board: Map<number, Map<number, Domino>>;

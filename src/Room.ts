@@ -1,6 +1,7 @@
 import { Socket } from "socket.io";
 import { Engine } from "./Engine";
-import { MessageType, QueryType } from "./Enums";
+import { MessageType } from "./enums/MessageType";
+import { QueryType } from "./enums/QueryType";
 import { GameConfigDescription } from "./interfaces/GameConfigDescription";
 import { shuffleArray, sleep } from "./utils";
 
@@ -142,12 +143,17 @@ export class Room {
 
     private emitToClient = (
         type: MessageType,
-        message: string,
+        payload: any,
         player: number
     ) => {
+        console.log(
+            `emitting ${
+                typeof payload === "object" ? JSON.stringify(payload) : payload
+            } of type ${type} to player ${player}`
+        );
         this.getSocketFromId(this.playersToSocketIds.get(player)).emit(
             type as string,
-            message
+            payload
         );
     };
 

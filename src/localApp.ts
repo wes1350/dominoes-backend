@@ -1,8 +1,25 @@
 import { Engine } from "./Engine";
 import * as readline from "readline";
-import { MessageType, QueryType } from "./Enums";
+import { shuffleArray } from "./utils";
+import { QueryType } from "./enums/QueryType";
+import { MessageType } from "./enums/MessageType";
+import RandomAgent from "./agents/RandomAgent";
+import _ from "lodash";
+import { Agent } from "./agents/Agent";
+import { PossiblePlaysMessage } from "./interfaces/PossiblePlaysMessage";
+import { Direction } from "./enums/Direction";
 
 // Run the game locally on the command line
+
+const N_Humans = 1;
+const agents = [RandomAgent];
+let players: Agent[] = _.flatten([_.range(N_Humans).map((i) => null), agents]);
+
+const shuffle = false;
+
+if (shuffle) {
+    players = shuffleArray(players);
+}
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -15,19 +32,58 @@ const input = (message: string): Promise<string> => {
     });
 };
 
-const query = (
-    _type: QueryType,
+const query = async (
+    type: QueryType,
     message: string,
-    _player: number
+    player: number,
+    options: { domino: number; direction: Direction }[]
 ): Promise<any> => {
     // locally, you must respond in the format 'dominoIndex direction', e.g. '3 W'
     // if there is only one possible direction, you can skip specifying the direction
-    return input(message + "\n").then((response) => {
-        return {
-            domino: response.split(" ")[0],
-            direction: response.split(" ")[1]
-        };
-    });
+    if (players[player] === null) {
+        return input(message + "\n").then((response) => {
+            return {
+                domino: parseInt(response.split(" ")[0]),
+                direction: response.split(" ")[1]
+            };
+        });
+    } else {
+        console.log("querying agent");
+        if (options.length === 0) {
+            throw new Error(
+                "Tried to query an agent when no options were given"
+            );
+        } else if (options.length === 1) {
+            return {
+                domino: options[0].domino,
+                direction: options[0].direction
+            };
+        }
+
+        console.log("going to ask agent");
+
+        // For now, send a blank game state. We need to add this later
+        const response = await players[player].respond(
+            type,
+            null,
+            player,
+            options
+        );
+        console.log("response:", response);
+        try {
+            return {
+                domino: options[response].domino,
+                direction: options[response].direction
+            };
+        } catch (err) {
+            console.error(err);
+            console.warn("Agent returned an invalid response:", response);
+            return {
+                domino: options[0].domino,
+                direction: options[0].direction
+            };
+        }
+    }
 };
 
 const whisper = (type: MessageType, payload: any, player: number) => {

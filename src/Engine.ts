@@ -26,7 +26,8 @@ export class Engine {
     private _query: (
         type: QueryType,
         message: string,
-        player: number
+        player: number,
+        options: any
     ) => Promise<any>;
     private _local?: boolean;
 
@@ -42,7 +43,8 @@ export class Engine {
         query_f: (
             type: QueryType,
             message: string,
-            player: number
+            player: number,
+            options: any
         ) => Promise<any> = null,
         local?: boolean
     ) {
@@ -309,30 +311,34 @@ export class Engine {
                     );
                 });
             }
-            this._whisper(
-                MessageType.POSSIBLE_PLAYS,
-                {
-                    plays: _.flatten(
-                        possible_placements.map((placement) =>
-                            placement.dirs.map((dir) => ({
-                                domino: placement.index,
-                                direction: dir
-                            }))
-                        )
+
+            const possiblePlays = {
+                plays: _.flatten(
+                    possible_placements.map((placement) =>
+                        placement.dirs.map((dir) => ({
+                            domino: placement.index,
+                            direction: dir
+                        }))
                     )
-                } as PossiblePlaysMessage,
-                player
-            );
+                )
+            } as PossiblePlaysMessage;
+
             const move_possible = !!possible_placements.find(
                 (p) => p.dirs.length > 0
             );
             if (move_possible) {
                 try {
+                    this._whisper(
+                        MessageType.POSSIBLE_PLAYS,
+                        possiblePlays,
+                        player
+                    );
                     const response: { domino: number; direction: string } =
                         await this._query(
                             QueryType.MOVE,
                             `Player ${player}, make a move`,
-                            player
+                            player,
+                            possiblePlays.plays
                         );
                     if (response === null) {
                         // Temporary case for disconnects

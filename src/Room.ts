@@ -160,7 +160,8 @@ export class Room {
     private queryClient = async (
         type: QueryType,
         message: string,
-        player: number
+        player: number,
+        options: any
     ): Promise<any> => {
         const socketId = this.playersToSocketIds.get(player);
         // if (!this.socketIdsToResponses.has(socketId)) {

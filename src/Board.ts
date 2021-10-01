@@ -1,3 +1,4 @@
+import _ from "lodash";
 import { Domino } from "./Domino";
 import { Direction } from "./enums/Direction";
 
@@ -311,5 +312,42 @@ export class Board {
             rep += "\n";
         }
         return rep;
+    }
+
+    public get Dominoes(): Domino[] {
+        return _.flatten(
+            Array.from(this._board.values()).map((yMap) =>
+                Array.from(yMap.values())
+            )
+        );
+    }
+
+    public get DominoRepresentations(): {
+        face1: number;
+        face2: number;
+        x: number;
+        y: number;
+    }[] {
+        return _.flatten(
+            Array.from(this._board.entries()).map((xEntry) => {
+                const x = xEntry[0];
+                const xMap = xEntry[1];
+                return Array.from(xMap.entries()).map((yEntry) => {
+                    const y = yEntry[0];
+                    const domino = yEntry[1];
+                    return { face1: domino.Big, face2: domino.Small, x, y };
+                });
+            })
+        );
+    }
+
+    // The face value of the spinner, or null if the spinner doesn't exist
+    public get Spinner(): number {
+        if (this._spinner_x === null) {
+            return null;
+        }
+        return Array.from(this._board.get(this._spinner_x).values()).find(
+            (domino) => domino.IsSpinner()
+        ).Big;
     }
 }

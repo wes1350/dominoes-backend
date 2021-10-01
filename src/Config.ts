@@ -1,4 +1,5 @@
 import { GameConfigDescription } from "./interfaces/GameConfigDescription";
+import { GameConfigDescriptionMessage } from "./interfaces/GameConfigDescriptionMessage";
 
 export class Config {
     private _n_players: number;
@@ -6,7 +7,7 @@ export class Config {
     private _win_threshold: number;
     private _check_5_doubles: boolean;
 
-    constructor(config?: GameConfigDescription) {
+    constructor(config?: GameConfigDescriptionMessage) {
         this._n_players = 4;
         this._hand_size = 7;
         this._win_threshold = 150;
@@ -41,5 +42,13 @@ export class Config {
 
     public get Check5Doubles(): boolean {
         return this._check_5_doubles;
+    }
+
+    public get ConfigDescription(): GameConfigDescription {
+        return {
+            nPlayers: this.NPlayers,
+            handSize: this.HandSize,
+            winThreshold: this.WinThreshold
+        };
     }
 }

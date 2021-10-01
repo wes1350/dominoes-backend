@@ -4,11 +4,12 @@ import { Domino } from "./Domino";
 import { Pack } from "./Pack";
 import { Player } from "./Player";
 import * as _ from "lodash";
-import { GameConfigDescription } from "./interfaces/GameConfigDescription";
+import { GameConfigDescriptionMessage } from "./interfaces/GameConfigDescriptionMessage";
 import { MessageType } from "./enums/MessageType";
 import { QueryType } from "./enums/QueryType";
 import { Direction } from "./enums/Direction";
 import { PossiblePlaysMessage } from "./interfaces/PossiblePlaysMessage";
+import { GameState } from "./interfaces/GameState";
 
 export class Engine {
     private _config: Config;
@@ -27,13 +28,14 @@ export class Engine {
         type: QueryType,
         message: string,
         player: number,
-        options: any
+        options: any,
+        gameState: GameState
     ) => Promise<any>;
     private _local?: boolean;
 
     public constructor(
         n_players: number,
-        configDescription: GameConfigDescription,
+        configDescription: GameConfigDescriptionMessage,
         whisper_f: (
             type: MessageType,
             payload: any,
@@ -44,7 +46,8 @@ export class Engine {
             type: QueryType,
             message: string,
             player: number,
-            options: any
+            options: any,
+            gameState: GameState
         ) => Promise<any> = null,
         local?: boolean
     ) {
@@ -338,7 +341,8 @@ export class Engine {
                             QueryType.MOVE,
                             `Player ${player}, make a move`,
                             player,
-                            possiblePlays.plays
+                            possiblePlays.plays,
+                            this.getGameStateForPlayer(player)
                         );
                     if (response === null) {
                         // Temporary case for disconnects
@@ -506,6 +510,46 @@ export class Engine {
 
     public get CurrentPlayer(): number {
         return this._current_player;
+    }
+
+    private getPlayerDescriptionOfSelf(seat: number, player: Player) {
+        return {
+            seatNumber: seat,
+            score: this.GetPlayerScore(seat),
+            hand: player.Hand.map((domino) => ({
+                face1: domino.Big,
+                face2: domino.Small
+            }))
+        };
+    }
+
+    private getPlayerDescriptionOfOpponent(seat: number, opponent: Player) {
+        return {
+            seatNumber: seat,
+            score: this.GetPlayerScore(seat),
+            dominoesInHand: opponent.Hand.length
+        };
+    }
+
+    private getPlayerRepresentations(seat: number) {
+        const me = this._players.find((p) => p.Id === seat);
+        const opponents = this._players.filter((p) => p.Id !== seat);
+        return {
+            me: this.getPlayerDescriptionOfSelf(seat, me),
+            opponents: opponents.map((opponent) =>
+                this.getPlayerDescriptionOfOpponent(seat, opponent)
+            )
+        };
+    }
+
+    private getGameStateForPlayer(player: number): GameState {
+        return {
+            config: this._config.ConfigDescription,
+            seatNumberForTurn: this._current_player, // maybe need to go back one player for event notification, depending on call order
+            spinner: this._board.Spinner,
+            board: this._board.DominoRepresentations,
+            players: this.getPlayerRepresentations(player)
+        };
     }
 }
 

@@ -2,7 +2,8 @@ import { Socket } from "socket.io";
 import { Engine } from "./Engine";
 import { MessageType } from "./enums/MessageType";
 import { QueryType } from "./enums/QueryType";
-import { GameConfigDescription } from "./interfaces/GameConfigDescription";
+import { GameConfigDescriptionMessage } from "./interfaces/GameConfigDescriptionMessage";
+import { GameState } from "./interfaces/GameState";
 import { shuffleArray, sleep } from "./utils";
 
 export class Room {
@@ -59,7 +60,7 @@ export class Room {
         this.socketIdsToNames.delete(socketId);
     }
 
-    public StartGame(config: GameConfigDescription): void {
+    public StartGame(config: GameConfigDescriptionMessage): void {
         console.log("config:", config);
         const randomlyOrderedSocketIds = shuffleArray(this.socketIds);
         randomlyOrderedSocketIds.forEach((socketId: string, i: number) => {
@@ -161,7 +162,8 @@ export class Room {
         type: QueryType,
         message: string,
         player: number,
-        options: any
+        options: any,
+        gameState: GameState
     ): Promise<any> => {
         const socketId = this.playersToSocketIds.get(player);
         // if (!this.socketIdsToResponses.has(socketId)) {

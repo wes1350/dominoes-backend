@@ -8,12 +8,21 @@ import _ from "lodash";
 import { Agent } from "./agents/Agent";
 import { PossiblePlaysMessage } from "./interfaces/PossiblePlaysMessage";
 import { Direction } from "./enums/Direction";
+import { GameState } from "./interfaces/GameState";
 
 // Run the game locally on the command line
 
+const playerMap = {
+    Human: null as Agent,
+    RandomAgent: RandomAgent
+};
+
 const N_Humans = 1;
 const agents = [RandomAgent];
-let players: Agent[] = _.flatten([_.range(N_Humans).map((i) => null), agents]);
+let players: Agent[] = _.flatten([
+    _.range(N_Humans).map((i) => playerMap["Human"]),
+    agents
+]);
 
 const shuffle = false;
 
@@ -36,11 +45,12 @@ const query = async (
     type: QueryType,
     message: string,
     player: number,
-    options: { domino: number; direction: Direction }[]
+    options: { domino: number; direction: Direction }[],
+    gameState: GameState
 ): Promise<any> => {
     // locally, you must respond in the format 'dominoIndex direction', e.g. '3 W'
     // if there is only one possible direction, you can skip specifying the direction
-    if (players[player] === null) {
+    if (players[player] === playerMap["Human"]) {
         return input(message + "\n").then((response) => {
             return {
                 domino: parseInt(response.split(" ")[0]),
@@ -49,6 +59,7 @@ const query = async (
         });
     } else {
         console.log("querying agent");
+        // console.log("gameState:", JSON.stringify(gameState, null, 4));
         if (options.length === 0) {
             throw new Error(
                 "Tried to query an agent when no options were given"
@@ -65,7 +76,7 @@ const query = async (
         // For now, send a blank game state. We need to add this later
         const response = await players[player].respond(
             type,
-            null,
+            gameState,
             player,
             options
         );
@@ -121,4 +132,4 @@ const shout = (type: MessageType, payload?: any) => {
 
 const engine = new Engine(2, {}, whisper, shout, query, true);
 engine.InitializeRound(true);
-const winner = engine.RunGame();
+engine.RunGame().then((winner) => console.log(winner));

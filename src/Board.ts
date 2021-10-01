@@ -323,8 +323,8 @@ export class Board {
     }
 
     public get DominoRepresentations(): {
-        face1: number;
-        face2: number;
+        head: number;
+        tail: number;
         x: number;
         y: number;
     }[] {
@@ -335,7 +335,7 @@ export class Board {
                 return Array.from(xMap.entries()).map((yEntry) => {
                     const y = yEntry[0];
                     const domino = yEntry[1];
-                    return { face1: domino.Big, face2: domino.Small, x, y };
+                    return { head: domino.Head, tail: domino.Tail, x, y };
                 });
             })
         );

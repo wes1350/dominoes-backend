@@ -6,9 +6,9 @@ import { MessageType } from "./enums/MessageType";
 import RandomAgent from "./agents/RandomAgent";
 import _ from "lodash";
 import { Agent } from "./agents/Agent";
-import { PossiblePlaysMessage } from "./interfaces/PossiblePlaysMessage";
 import { Direction } from "./enums/Direction";
 import { GameState } from "./interfaces/GameState";
+import GreedyAgent from "./agents/GreedyAgent";
 
 // Run the game locally on the command line
 
@@ -18,7 +18,8 @@ const playerMap = {
 };
 
 const N_Humans = 1;
-const agents = [RandomAgent];
+// const agents = [RandomAgent];
+const agents = [GreedyAgent];
 let players: Agent[] = _.flatten([
     _.range(N_Humans).map((i) => playerMap["Human"]),
     agents

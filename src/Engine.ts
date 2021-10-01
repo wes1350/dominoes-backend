@@ -201,6 +201,7 @@ export class Engine {
 
         if (this._local) {
             console.log("\n\n" + this._board.Rep + "\n");
+            console.log("scores:", this.GetScores(), "\n");
         }
 
         return false;
@@ -517,8 +518,8 @@ export class Engine {
             seatNumber: seat,
             score: this.GetPlayerScore(seat),
             hand: player.Hand.map((domino) => ({
-                face1: domino.Big,
-                face2: domino.Small
+                head: domino.Head,
+                tail: domino.Tail
             }))
         };
     }

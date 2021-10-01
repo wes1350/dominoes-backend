@@ -7,7 +7,7 @@ export interface GameState {
         me: {
             seatNumber: number;
             score: number;
-            hand: { face1: number; face2: number }[];
+            hand: { head: number; tail: number }[];
         };
         opponents: {
             seatNumber: number;
@@ -15,6 +15,6 @@ export interface GameState {
             dominoesInHand: number;
         }[];
     };
-    board: { face1: number; face2: number; x: number; y: number }[];
+    board: { head: number; tail: number; x: number; y: number }[];
     spinner: number;
 }
